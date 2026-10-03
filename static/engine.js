@@ -4,7 +4,23 @@
 (function (root) {
   "use strict";
 
-  const RANK_PENALTY = 1;   // mỗi bậc lùi xuống trong 1 slot bị trừ 0.1 điểm
+  const RANK_PENALTY = 1;   // mỗi bậc tier hạ xuống (S→A→B→C) bị trừ 1 điểm; cùng bậc thì không trừ
+  const SLOT_TIERS = ["S", "A", "B", "C"];
+  const tierIdx = v => { const i = SLOT_TIERS.indexOf(String(v || "").toUpperCase()); return i < 0 ? 0 : i; };
+  // Bậc của từng nhân vật trong slot. Dữ liệu cũ chưa có "tiers" thì suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C)
+  // để điểm các team cũ giữ nguyên.
+  function slotTierIdx(t, si, k) {
+    const tt = t.tiers && t.tiers[si];
+    if (tt && tt[k] !== undefined) return tierIdx(tt[k]);
+    return Math.min(k, SLOT_TIERS.length - 1);
+  }
+  // Chuẩn hóa tiers theo slots (đủ độ dài, giá trị hợp lệ)
+  function normTiers(slots, tiers) {
+    return slots.map((s, si) => s.map((_, k) => {
+      const v = tiers && tiers[si] && tiers[si][k];
+      return SLOT_TIERS.includes(String(v || "").toUpperCase()) ? String(v).toUpperCase() : SLOT_TIERS[Math.min(k, SLOT_TIERS.length - 1)];
+    }));
+  }
   const MAX_COPIES = 2;       // Matrix: tối đa 2 lần dùng / nhân vật
   const CDN = "https://cdn.prydwen.gg/images/wuthering-waves/characters/{slug}_icon.webp";
   const STORE_KEY = "wuwa.admin.db.v1";
@@ -27,9 +43,10 @@
   // ------------------------------------------------------------------ solver
   function expandTemplate(t, allowed) {
     const slotOpts = [];
-    for (const slot of t.slots) {
+    for (let si = 0; si < t.slots.length; si++) {
+      const slot = t.slots[si];
       const opts = [];
-      slot.forEach((rid, rank) => { if (!allowed || allowed.has(rid)) opts.push([rid, rank]); });
+      slot.forEach((rid, k) => { if (!allowed || allowed.has(rid)) opts.push([rid, slotTierIdx(t, si, k)]); });
       if (!opts.length) return [];
       slotOpts.push(opts);
     }
@@ -275,7 +292,7 @@
 
   function teamScoreFor(t, members) {
     let pen = 0;
-    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? i : 0; });
+    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? slotTierIdx(t, si, i) : 0; });
     return r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
   }
 
@@ -394,9 +411,9 @@
     if (slots.some(s => new Set(s).size !== s.length)) fail("Một slot không được có nhân vật trùng");
     const valid = new Set(db.resonators.map(r => r.id));
     if (slots.some(s => s.some(x => !valid.has(x)))) fail("Có nhân vật không tồn tại");
-    if (!expandTemplate({ id: 0, slots, score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
+    if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, score, tier: s("tier"), patch: s("patch"), team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), score, tier: s("tier"), patch: s("patch"), team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -513,6 +530,7 @@
         name: t.name, score: t.score, tier: t.tier, patch: t.patch, team_type: t.team_type,
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
+        tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
       })),
     };
   }
@@ -538,7 +556,7 @@
       const key = (t.name || "") + "|" + JSON.stringify(slots);
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({
-        id: nextId(db.teams), name: t.name || "", slots, score: parseFloat(t.score || 0), tier: t.tier || "",
+        id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers), score: parseFloat(t.score || 0), tier: t.tier || "",
         patch: t.patch || "", team_type: t.team_type || "", notes: t.notes || "",
         active: t.active === 0 || t.active === false ? 0 : 1, source: t.source || "user",
       });
@@ -630,11 +648,11 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "score", "tier", "patch", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "tiers", "score", "tier", "patch", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
-      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, t[k]]))));
+      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : t[k]]))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
       "window.TIER_SCORE = " + line(root.TIER_SCORE) + ";\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";
@@ -642,7 +660,7 @@
 
   root.engineApi = engineApi;
   root.WuwaEngine = {
-    engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs,
+    engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS,
     hasLocalEdits, resetLocalEdits, loadDb, exportJson, ready,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.WuwaEngine;
