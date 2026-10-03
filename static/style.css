@@ -387,3 +387,10 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .foot-link.dc svg { color: #5865f2; }
 .foot-link.yt:hover { border-color: #ff1f3d; box-shadow: 0 0 14px rgba(255,31,61,.35); transform: translateY(-2px); }
 .foot-link.dc:hover { border-color: #5865f2; box-shadow: 0 0 14px rgba(88,101,242,.45); transform: translateY(-2px); }
+
+/* ---------- Bậc S/A/B/C của nhân vật trong slot (Admin) ---------- */
+.chip-tier { width: 56px; padding: 4px 6px; font-weight: 800; border-radius: 8px; text-align: center; }
+.chip-tier.t-S { color: #ffd86b; border-color: #ffd86b; }
+.chip-tier.t-A { color: #7ee0d0; border-color: #7ee0d0; }
+.chip-tier.t-B { color: #7fa6ff; border-color: #7fa6ff; }
+.chip-tier.t-C { color: #aab3cc; border-color: #aab3cc; }
