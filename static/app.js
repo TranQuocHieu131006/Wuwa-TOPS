@@ -385,6 +385,6 @@ document.querySelectorAll("#sortSeg button").forEach(b => b.addEventListener("cl
   renderRoster();
 }));
 document.getElementById("optimizeBtn").addEventListener("click", () => runOptimize(false));
-document.getElementById("pullBtn").addEventListener("click", runPull);
+   document.getElementById("pullBtn").addEventListener("click", () => runPull(false));
 
 load();
