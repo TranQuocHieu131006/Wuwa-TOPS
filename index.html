@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WuWa Account Optimizer</title>
+<link rel="stylesheet" href="static/style.css?v=5">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>WuWa <span>Account Optimizer</span></h1>
+    <p>Chọn Resonator đang có → xếp team tối ưu → biết nên roll ai tiếp theo.</p>
+  </div>
+  <div class="nav-group"><a class="nav-link" href="admin.html">⚙ Dữ liệu team / Admin</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
+</header>
+
+<main>
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>1. Resonator của bạn</h2>
+        <p class="hint" id="modeHint"></p>
+      </div>
+      <div class="seg" id="modeSeg">
+        <button data-mode="toa" class="active">ToA</button>
+        <button data-mode="matrix">Matrix</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Tìm nhân vật…">
+      <div class="chip-row" id="elChips"></div>
+      <div class="chip-row" id="rarChips"></div>
+      <div class="chip-row" id="stChips"></div>
+      <label class="inline"><input type="checkbox" id="onlySel"> Chỉ hiện đã chọn</label>
+      <div class="btn-pair">
+        <button class="small ghost" id="selAll">Chọn tất cả (đang lọc)</button>
+        <button class="small ghost danger" id="clearAll">Bỏ chọn hết</button>
+      </div>
+      <div class="seg small" id="sortSeg" title="Bấm lại nút đang chọn để đảo chiều">
+        <button data-sort="name" class="active"></button>
+        <button data-sort="date"></button>
+      </div>
+      <span class="counter" id="counter"></span>
+    </div>
+
+    <div id="roster" class="roster"></div>
+  </section>
+
+  <section id="result" class="panel hidden">
+    <div class="panel-head">
+      <div>
+        <h2 id="resultTitle">2. Xếp team</h2>
+        <p class="hint">Tổng điểm lớn nhất từ các team trong database, không nhân vật nào bị dùng quá số lần cho phép.</p>
+      </div>
+    </div>
+    <div id="summary" class="summary"></div>
+    <div id="approxWarn" class="warn hidden">Roster quá lớn nên kết quả là gần-tối-ưu (heuristic), không phải tối ưu tuyệt đối.</div>
+
+    <h3 class="sec">Các team được chọn</h3>
+    <div id="teams" class="team-grid"></div>
+
+    <h3 class="sec">Nhân vật còn dư</h3>
+    <div id="leftover" class="leftover"></div>
+
+    <h3 class="sec">Gợi ý team cho nhân vật dư <span class="hint">(nhân vật chưa có hiển thị tối đen)</span></h3>
+    <div id="incomplete" class="team-grid"></div>
+  </section>
+
+  <section id="pullResult" class="panel hidden">
+    <div class="panel-head">
+      <div>
+        <h2 id="pullTitle">Nên pull nhân vật nào?</h2>
+        <p class="hint" id="pullHint"></p>
+      </div>
+    </div>
+    <div id="potLegend"></div>
+    <div id="pulls" class="pull-list"></div>
+  </section>
+</main>
+
+<div class="actions" style="max-width:1200px;margin:0 auto 14px;">
+  <button class="primary" id="optimizeBtn">⚡ Xếp team</button>
+  <button id="pullBtn">🎯 Nên pull ai?</button>
+  <label class="inline"><input type="checkbox" id="inclUpcoming"> Tính cả nhân vật sắp ra mắt</label>
+  <span class="grow"></span>
+  <span class="hint" id="actionHint"></span>
+</div>
+
+<footer class="site-footer">
+  <div class="foot-col">
+    <div class="foot-title">Follow Us</div>
+    <a class="foot-link yt" href="https://www.youtube.com/@snowfoxatvietnam" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      <span>YouTube</span>
+    </a>
+  </div>
+  <div class="foot-col">
+    <div class="foot-title">Contact Us</div>
+    <a class="foot-link dc" href="https://discord.com/users/237072366302134283" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+      <span>Discord</span>
+    </a>
+  </div>
+</footer>
+
+<script src="static/vendor/highs.js"></script>
+<script src="static/data.js?v=5"></script>
+<script src="static/engine.js?v=5"></script>
+<script src="static/common.js?v=5"></script>
+<script src="static/app.js?v=5"></script>
+</body>
+</html>

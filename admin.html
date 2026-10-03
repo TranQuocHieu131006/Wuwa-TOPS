@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WuWa Optimizer – Admin</title>
+<link rel="stylesheet" href="static/style.css?v=5">
+</head>
+<body>
+<header class="top">
+  <div>
+    <h1>Dữ liệu <span>Team &amp; Resonator</span></h1>
+    <p>Bạn tự thêm / sửa team và chấm điểm. Optimizer chỉ dựa vào điểm này.</p>
+  </div>
+  <div style="display:flex;gap:8px;"><a class="nav-link" href="index.html">← Quay lại Optimizer</a><a class="nav-link hidden" id="logoutLink" href="#">Đăng xuất</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
+</header>
+
+<section class="panel" id="gate" style="max-width:420px;margin:40px auto;">
+  <form id="gateForm" style="display:flex;flex-direction:column;gap:12px;">
+    <h2 style="margin:0">Đăng nhập admin</h2>
+    <input type="password" id="gatePw" placeholder="Mật khẩu" autofocus required>
+    <div class="warn hidden" id="gateErr">Sai mật khẩu</div>
+    <button class="primary" type="submit">Đăng nhập</button>
+  </form>
+</section>
+
+<div id="localBanner" class="warn hidden" style="max-width:1200px;margin:0 auto 12px;"></div>
+
+<main class="admin-grid">
+
+  <section class="panel" id="formPanel">
+    <div class="panel-head">
+      <div>
+        <h2 id="formTitle">Thêm team</h2>
+        <p class="hint">Mỗi slot có thể chứa nhiều lựa chọn thay thế; <b>thứ tự = mức ưu tiên</b> (đầu tiên là tốt nhất, lùi 1 bậc bị trừ 0.1 điểm khi xếp).</p>
+      </div>
+    </div>
+    <form id="teamForm">
+      <input id="teamName" placeholder="Tên team, ví dụ: Hiyuki Hypercarry">
+      <div class="slots" id="slots"></div>
+      <div class="form-grid">
+        <input id="score" type="number" step="0.1" min="0" max="20" placeholder="Điểm (0-10)" required>
+        <select id="tier">
+          <option value="">Tier…</option>
+        </select>
+        <input id="patch" placeholder="Patch, ví dụ 3.6">
+        <input id="teamType" placeholder="Kiểu: Hypercarry, Dual DPS…">
+      </div>
+      <textarea id="notes" placeholder="Ghi chú (Expert +1, yêu cầu sequence, rotation…)"></textarea>
+      <div class="tools">
+        <button class="primary" id="saveBtn">Thêm team</button>
+        <button type="button" id="cancelEdit" class="hidden">Hủy sửa</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Database team <span class="hint" id="teamCount"></span></h2>
+        <p class="hint">Tắt công tắc “Dùng” để loại tạm một team khỏi tính toán mà không cần xóa.</p>
+      </div>
+      <div class="tools">
+        <button class="small" id="exportBtn">⬇ Xuất JSON</button>
+        <button class="small primary" id="exportJsBtn" title="Tải file data.js để thay vào repo → cập nhật dữ liệu cho mọi người">⬇ Xuất data.js (cập nhật site)</button>
+        <button class="small danger" id="resetLocalBtn" title="Bỏ mọi chỉnh sửa trên trình duyệt này, quay về dữ liệu gốc của site">↺ Về dữ liệu gốc</button>
+        <button class="small" id="importBtn">⬆ Nhập JSON</button>
+        <input type="file" id="importFile" accept="application/json" class="hidden">
+        <button class="small danger" id="reseedBtn" title="Xóa team nguồn Prydwen rồi nạp lại bản gốc">↺ Nạp lại team Prydwen</button>
+      </div>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="teamSearch" placeholder="Tìm theo tên team / nhân vật…">
+      <select id="tierFilter"><option value="">Mọi tier</option></select>
+    </div>
+    <div class="table-wrap" id="teamTable"></div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <div>
+        <h2>Resonator <span class="hint" id="resCount"></span></h2>
+        <p class="hint">Ảnh miniface: ảnh được lấy từ CDN Prydwen theo “Slug ảnh”; nếu lỗi sẽ hiện chữ cái đầu của nhân vật.</p>
+      </div>
+    </div>
+    <div id="potLegend" style="margin-bottom:12px"></div>
+    <form id="resForm" class="form-grid" style="margin-bottom:14px">
+      <input id="resName" placeholder="Tên Resonator" required>
+      <select id="resRarity"><option>5★</option><option>4★</option></select>
+      <select id="resElement"></select>
+      <select id="resStatus" title="Trạng thái banner"></select>
+      <select id="resRole"><option value="DPS">DPS</option><option value="supDPS">Sub-DPS</option><option value="Healer">Healer</option></select>
+      <input id="resDate" type="text" inputmode="numeric" maxlength="10" placeholder="Ngày ra mắt dd/mm/yyyy" autocomplete="off" title="Ngày ra mắt dd/mm/yyyy (để trống nếu chưa có)">
+      <select id="resPotential" title="Potential — ảnh hưởng điểm pull"></select>
+      <button class="primary">Thêm Resonator</button>
+    </form>
+    <div class="table-wrap" id="resTable"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="foot-col">
+    <div class="foot-title">Follow Us</div>
+    <a class="foot-link yt" href="https://www.youtube.com/@snowfoxatvietnam" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+      <span>YouTube</span>
+    </a>
+  </div>
+  <div class="foot-col">
+    <div class="foot-title">Contact Us</div>
+    <a class="foot-link dc" href="https://discord.com/users/237072366302134283" target="_blank" rel="noopener noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg>
+      <span>Discord</span>
+    </a>
+  </div>
+</footer>
+
+<script src="static/vendor/highs.js"></script>
+<script src="static/data.js?v=5"></script>
+<script src="static/engine.js?v=5"></script>
+<script src="static/common.js?v=5"></script>
+<script src="static/gate.js?v=5"></script>
+<script src="static/admin.js?v=5"></script>
+</body>
+</html>
