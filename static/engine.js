@@ -4,7 +4,7 @@
 (function (root) {
   "use strict";
 
-  const RANK_PENALTY = 0.1;   // mỗi bậc lùi xuống trong 1 slot bị trừ 0.1 điểm
+  const RANK_PENALTY = 1;   // mỗi bậc lùi xuống trong 1 slot bị trừ 0.1 điểm
   const MAX_COPIES = 2;       // Matrix: tối đa 2 lần dùng / nhân vật
   const CDN = "https://cdn.prydwen.gg/images/wuthering-waves/characters/{slug}_icon.webp";
   const STORE_KEY = "wuwa.admin.db.v1";
