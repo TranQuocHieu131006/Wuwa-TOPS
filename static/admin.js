@@ -2,6 +2,16 @@ let chars = [];
 let byId = {};
 let teams = [];
 let slots = [[], [], []];
+let slotTiers = [[], [], []];   // bậc S/A/B/C của từng nhân vật trong slot (song song với slots)
+const TIER_LIST = ["S", "A", "B", "C"];
+const tierRank = v => Math.max(TIER_LIST.indexOf(v), 0);
+// giữ danh sách trong slot luôn xếp từ bậc cao xuống thấp (ổn định: cùng bậc giữ nguyên thứ tự thêm)
+function sortSlot(si) {
+  const arr = slots[si].map((id, k) => ({ id, t: slotTiers[si][k] || "S", k }));
+  arr.sort((a, b) => tierRank(a.t) - tierRank(b.t) || a.k - b.k);
+  slots[si] = arr.map(x => x.id);
+  slotTiers[si] = arr.map(x => x.t);
+}
 let editing = null;
 let scoreTouched = false;
 
@@ -23,7 +33,11 @@ async function load() {
 let focusSlot = null;   // giữ focus ở ô tìm sau khi thêm, để thêm liên tiếp nhiều nhân vật
 
 function addToSlot(si, id) {
-  if (id && !slots[si].includes(id)) slots[si].push(id);
+  if (id && !slots[si].includes(id)) {
+    const last = slotTiers[si][slotTiers[si].length - 1];
+    slots[si].push(id);
+    slotTiers[si].push(last || "S");      // mặc định cùng bậc với nhân vật liền trước => không bị trừ điểm
+  }
   focusSlot = si;
   renderSlots();
 }
@@ -76,9 +90,11 @@ function renderSlots() {
       <div class="slot-chips">
         ${ids.length ? ids.map((id, k) => `
           <div class="slot-chip">
-            <span class="ord">${k + 1}</span>${faceHTML(byId[id], { size: "sm" })}
+            ${faceHTML(byId[id], { size: "sm" })}
             <span class="grow">${esc(byId[id]?.name || "?")}</span>
-            ${k > 0 ? `<button type="button" title="Đẩy lên ưu tiên cao hơn" data-act="up" data-s="${si}" data-k="${k}">▲</button>` : ""}
+            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 1 điểm)">
+              ${TIER_LIST.map(t => `<option value="${t}" ${t === (slotTiers[si][k] || "S") ? "selected" : ""}>${t}</option>`).join("")}
+            </select>
             <button type="button" class="danger" data-act="del" data-s="${si}" data-k="${k}">✕</button>
           </div>`).join("") : '<span class="hint">Chưa chọn nhân vật nào</span>'}
       </div>
@@ -96,8 +112,13 @@ function renderSlots() {
   }
   box.querySelectorAll("button[data-act]").forEach(btn => btn.addEventListener("click", () => {
     const si = Number(btn.dataset.s), k = Number(btn.dataset.k);
-    if (btn.dataset.act === "del") slots[si].splice(k, 1);
-    else [slots[si][k - 1], slots[si][k]] = [slots[si][k], slots[si][k - 1]];
+    if (btn.dataset.act === "del") { slots[si].splice(k, 1); slotTiers[si].splice(k, 1); }
+    renderSlots();
+  }));
+  box.querySelectorAll("select[data-tier]").forEach(sel => sel.addEventListener("change", () => {
+    const si = Number(sel.dataset.s), k = Number(sel.dataset.k);
+    slotTiers[si][k] = sel.value;
+    sortSlot(si);
     renderSlots();
   }));
 }
@@ -122,6 +143,7 @@ function resetForm() {
   editing = null;
   scoreTouched = false;
   slots = [[], [], []];
+  slotTiers = [[], [], []];
   document.getElementById("teamForm").reset();
   document.getElementById("formTitle").textContent = "Thêm team";
   document.getElementById("saveBtn").textContent = "Thêm team";
@@ -134,6 +156,7 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
   const body = {
     name: document.getElementById("teamName").value,
     slots,
+    tiers: slotTiers,
     score: document.getElementById("score").value,
     tier: document.getElementById("tier").value,
     patch: document.getElementById("patch").value,
@@ -156,6 +179,8 @@ function editTeam(id) {
   editing = id;
   scoreTouched = true;
   slots = t.slots.map(s => [...s]);
+  // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
+  slotTiers = t.slots.map((s, si) => s.map((_, k) => (t.tiers && t.tiers[si] && t.tiers[si][k]) || TIER_LIST[Math.min(k, 3)]));
   document.getElementById("teamName").value = t.name || "";
   document.getElementById("score").value = t.score;
   document.getElementById("tier").value = t.tier || "";
