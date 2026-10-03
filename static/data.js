@@ -64,7 +64,7 @@ window.WUWA_DATA = {
   {"id":60,"name":"Zhezhi","rarity":"5★","element":"Glacio","released":1,"slug":"zhezhi","role":"supDPS","date":"2024-08-15","status":"available","potential":"B"}
  ],
  "teams": [
-  {"id":1,"name":"Crimson Snow","slots":[[20],[28,33,23,46],[48,13,34,52]],"score":10,"tier":"T0","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
+  {"id":1,"name":"Crimson Snow","slots":[[20],[28,33,23,46],[48,13,34,52]],"score":10,"tier":"","patch":"","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":2,"name":"Kingran","slots":[[24],[22,35],[51,52]],"score":8.2,"tier":"T0.5","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
   {"id":3,"name":"Thánh Kiếm 36","slots":[[38],[17,33,35,46],[34,52]],"score":9,"tier":"T0","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
   {"id":4,"name":"Yapyap","slots":[[55],[13,35,40,37,16],[48,13,52]],"score":9,"tier":"T0","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
@@ -83,11 +83,11 @@ window.WUWA_DATA = {
   {"id":20,"name":"Og Mono Fusion","slots":[[31],[5],[12]],"score":9,"tier":"T2","patch":"3.6","team_type":"Hypercarry","notes":"Expert +1","active":1,"source":"prydwen"},
   {"id":23,"name":"Phrolulu","slots":[[37],[9,39,16],[6,41,51,52,4]],"score":8,"tier":"T2","patch":"3.6","team_type":"Dual DPS","notes":"","active":1,"source":"prydwen"},
   {"id":24,"name":"ZALO","slots":[[59],[36],[45]],"score":9,"tier":"T2","patch":"3.6","team_type":"Hypercarry","notes":"Expert +2","active":1,"source":"prydwen"},
-  {"id":25,"name":"Cam Bựa","slots":[[8],[46,41,16],[52,51]],"score":9,"tier":"T3","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
+  {"id":25,"name":"Cam Bựa","slots":[[8],[46,41,16],[52,51]],"score":6,"tier":"T3","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
   {"id":27,"name":"Jinhsiii","slots":[[25],[9,12,60,58,56],[52,6]],"score":6,"tier":"T3","patch":"3.6","team_type":"Hypercarry","notes":"Expert +1","active":1,"source":"prydwen"},
   {"id":28,"name":"A Long","slots":[[26],[35,54,1],[52,51]],"score":6,"tier":"T3","patch":"3.6","team_type":"Dual DPS","notes":"Expert +1","active":1,"source":"prydwen"},
   {"id":30,"name":"A Yao","slots":[[53],[56,23,33],[51,52,4,6,54]],"score":6.5,"tier":"T3","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
-  {"id":33,"name":"H.Rover","slots":[[44],[46,41,16],[52]],"score":5,"tier":"T4","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
+  {"id":33,"name":"H.Rover","slots":[[44],[46,41,16],[52]],"score":6,"tier":"T4","patch":"3.6","team_type":"Hypercarry","notes":"","active":1,"source":"prydwen"},
   {"id":34,"name":"Encore","slots":[[31],[12,17,14],[18,35]],"score":5,"tier":"T4","patch":"","team_type":"","notes":"","active":1,"source":"user"}
  ]
 };
