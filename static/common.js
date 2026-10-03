@@ -13,9 +13,9 @@ const ROLE_TAG = { DPS: "DPS", supDPS: "Sub-DPS", Healer: "Healer" };
 const STATUS_ORDER = ["available", "upcoming", "rerun", "soon", "limited", "norerun"];
 const STATUS_META = {
   available: { label: "Đã ra mắt",       tag: "",            color: "#8d9ab8" },
-  upcoming:  { label: "Sắp ra mắt",      tag: "SẮP RA",      color: "#f3c76b" },
-  rerun:     { label: "Đang rerun",      tag: "ĐANG RERUN",  color: "#5fd9a0" },
-  soon:      { label: "Sắp rerun",       tag: "SẮP RERUN",   color: "#ffa24d" },
+  upcoming:  { label: "Sắp ra mắt",      tag: "Debut",      color: "#f3c76b" },
+  rerun:     { label: "Rerun",      tag: "Rerun",  color: "#5fd9a0" },
+  soon:      { label: "Incoming",       tag: "Incoming",   color: "#ffa24d" },
   limited:   { label: "Đã limited",      tag: "LIMITED",     color: "#ff6b7a" },
   norerun:   { label: "Không rerun nữa", tag: "KHÔNG RERUN", color: "#c0394b" },
 };
