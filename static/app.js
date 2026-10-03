@@ -155,7 +155,6 @@ function renderRoster() {
       <div class="meta"><span class="${r.rarity === "5★" ? "star5" : "star4"}">${r.rarity}</span>
         <span style="color:${EL_COLOR[r.element] || "#888"}">${esc(r.element)}</span></div>
       <div class="role-row"><span class="role-tag ${esc(r.role)}">${esc(ROLE_TAG[r.role] || r.role)}</span></div>
-      ${sortKey === "date" ? `<div class="meta">${r.date ? fmtDate(r.date) : "chưa có ngày"}</div>` : ""}
       <div class="copies">
         ${two ? '<button class="minus" title="Bỏ lần dùng thứ 2">−</button>' : ""}
         <span class="badge">×${two ? 2 : 1}</span>
