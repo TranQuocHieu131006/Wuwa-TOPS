@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=5">
+<link rel="stylesheet" href="static/style.css?v=9">
 </head>
 <body>
 <header class="top">
@@ -58,14 +58,18 @@
     <div id="summary" class="summary"></div>
     <div id="approxWarn" class="warn hidden">Roster quá lớn nên kết quả là gần-tối-ưu (heuristic), không phải tối ưu tuyệt đối.</div>
 
-    <h3 class="sec">Các team được chọn</h3>
+    <h3 class="sec">Các team được chọn <span class="hint">(kéo thả để chỉnh)</span></h3>
+    <p class="hint dnd-hint">Xếp tự do hoàn toàn: kéo nhân vật vào bất kỳ slot nào, giữa các team, hoặc từ “Nhân vật còn dư”. Không có ràng buộc vai trò. Có thể xếp tay ngay cả khi chưa bấm “Xếp team”.</p>
     <div id="teams" class="team-grid"></div>
+    <div class="add-team-row"><button class="ghost" id="addTeamBtn">＋ Add new team</button><button class="export" id="exportBtn">🖼 Xuất ảnh team</button></div>
 
-    <h3 class="sec">Nhân vật còn dư</h3>
+    <h3 class="sec">Nhân vật còn dư <span class="hint">(kéo vào slot trống của team)</span></h3>
     <div id="leftover" class="leftover"></div>
 
+    <div id="incWrap">
     <h3 class="sec">Gợi ý team cho nhân vật dư <span class="hint">(nhân vật chưa có hiển thị tối đen)</span></h3>
     <div id="incomplete" class="team-grid"></div>
+    </div>
   </section>
 
   <section id="pullResult" class="panel hidden">
@@ -107,8 +111,8 @@
 
 <script src="static/vendor/highs.js"></script>
 <script src="static/data.js?v=5"></script>
-<script src="static/engine.js?v=5"></script>
+<script src="static/engine.js?v=9"></script>
 <script src="static/common.js?v=5"></script>
-<script src="static/app.js?v=5"></script>
+<script src="static/app.js?v=9"></script>
 </body>
 </html>

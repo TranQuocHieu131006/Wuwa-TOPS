@@ -21,6 +21,35 @@
       return SLOT_TIERS.includes(String(v || "").toUpperCase()) ? String(v).toUpperCase() : SLOT_TIERS[Math.min(k, SLOT_TIERS.length - 1)];
     }));
   }
+  // ---- Cặp chuẩn (pairs): team có thể khai báo các cặp nhân vật ăn ý với nhau, dạng [idA, idB].
+  // Khi CẢ HAI cùng có mặt trong đội hình thì mỗi người được nâng 1 bậc (A→S, B→A...; S vẫn là S).
+  // Đứng riêng (thiếu người còn lại) thì giữ nguyên bậc đã chấm trong slot.
+  function normPairs(slots, pairs) {
+    const out = [], seen = new Set();
+    for (const p of pairs || []) {
+      const a = parseInt(p && p[0], 10), b = parseInt(p && p[1], 10);
+      if (!Number.isInteger(a) || !Number.isInteger(b) || a === b) continue;
+      let ok = false;   // 2 người phải nằm được ở 2 slot khác nhau thì mới đứng chung đội hình được
+      for (let i = 0; i < slots.length; i++) for (let j = 0; j < slots.length; j++)
+        if (i !== j && slots[i].includes(a) && slots[j].includes(b)) ok = true;
+      if (!ok) continue;
+      const key = a < b ? a + "," + b : b + "," + a;
+      if (seen.has(key)) continue;
+      seen.add(key); out.push([a, b]);
+    }
+    return out;
+  }
+  // các cặp đang "khớp" (đủ cả 2 người) trong đội hình ids
+  function activePairs(t, ids) {
+    return (t.pairs || []).filter(([a, b]) => ids.includes(a) && ids.includes(b));
+  }
+  function boostedIds(t, ids) {
+    const out = new Set();
+    for (const [a, b] of activePairs(t, ids)) { out.add(a); out.add(b); }
+    return out;
+  }
+  const effIdx = (idx, boosted) => boosted ? Math.max(idx - 1, 0) : idx;
+
   const MAX_COPIES = 2;       // Matrix: tối đa 2 lần dùng / nhân vật
   const CDN = "https://cdn.prydwen.gg/images/wuthering-waves/characters/{slug}_icon.webp";
   const STORE_KEY = "wuwa.admin.db.v1";
@@ -53,9 +82,10 @@
     const best = new Map();
     for (const a of slotOpts[0]) for (const b of slotOpts[1]) for (const c of slotOpts[2]) {
       if (a[0] === b[0] || a[0] === c[0] || b[0] === c[0]) continue;
-      const pen = (a[1] + b[1] + c[1]) * RANK_PENALTY;
-      const score = r2(Math.max(Number(t.score) - pen, 0.01));
       const ids = [a[0], b[0], c[0]];
+      const bst = boostedIds(t, ids);
+      const pen = (effIdx(a[1], bst.has(a[0])) + effIdx(b[1], bst.has(b[0])) + effIdx(c[1], bst.has(c[0]))) * RANK_PENALTY;
+      const score = r2(Math.max(Number(t.score) - pen, 0.01));
       const key = ids.slice().sort((x, y) => x - y).join(",");
       const cur = best.get(key);
       if (!cur || score > cur.score) best.set(key, { tid: t.id, ids, score });
@@ -272,27 +302,40 @@
   // ------------------------------------------------------------------ gợi ý team cho nhân vật dư
   function fillForLeftover(t, rid, owned, busy) {
     const members = [null, null, null];
-    const used = new Set();
     let found = false;
     for (let si = 0; si < 3; si++) {
-      if (t.slots[si].includes(rid)) { members[si] = rid; used.add(rid); found = true; break; }
+      if (t.slots[si].includes(rid)) { members[si] = rid; found = true; break; }
     }
     if (!found) return null;
-    for (let si = 0; si < 3; si++) {
-      if (members[si] !== null) continue;
-      const cand = t.slots[si].filter(x => !used.has(x));
-      if (!cand.length) return null;
-      let pick = cand.find(x => owned.has(x) && !busy.has(x));
-      if (pick === undefined) pick = cand.find(x => owned.has(x));
-      if (pick === undefined) pick = cand[0];
-      members[si] = pick; used.add(pick);
-    }
-    return members;
+    const empty = [0, 1, 2].filter(si => members[si] === null);
+    // thử mọi cách lấp các slot trống (tối đa 2 slot) rồi chọn cách tốt nhất:
+    // ít người thiếu nhất -> ít người đã bận nhất -> điểm cao nhất (có tính cặp chuẩn) -> ưu tiên người đứng trước trong slot
+    let best = null;
+    const rec = (k, cur, ord) => {
+      if (k === empty.length) {
+        const ids = cur.slice();
+        if (new Set(ids).size !== 3) return;
+        const missing = ids.filter(m => !owned.has(m)).length;
+        const busyN = ids.filter(m => owned.has(m) && busy.has(m) && m !== rid).length;
+        const sc = teamScoreFor(t, ids);
+        if (!best || missing < best.missing || (missing === best.missing && (busyN < best.busyN ||
+            (busyN === best.busyN && (sc > best.sc || (sc === best.sc && ord < best.ord)))))) {
+          best = { ids, missing, busyN, sc, ord };
+        }
+        return;
+      }
+      const si = empty[k];
+      t.slots[si].forEach((x, i) => { cur[si] = x; rec(k + 1, cur, ord + i); });
+      cur[si] = null;
+    };
+    rec(0, members.slice(), 0);
+    return best ? best.ids : null;
   }
 
   function teamScoreFor(t, members) {
     let pen = 0;
-    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? slotTierIdx(t, si, i) : 0; });
+    const bst = boostedIds(t, members);
+    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? effIdx(slotTierIdx(t, si, i), bst.has(m)) : 0; });
     return r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
   }
 
@@ -316,7 +359,7 @@
     }
     const out = [...bestByKey.values()].map(v => ({
       team_id: v.t.id, name: v.t.name, tier: v.t.tier, team_type: v.t.team_type,
-      notes: v.t.notes, score: v.sc, slots: v.t.slots, for: v.for,
+      notes: v.t.notes, score: v.sc, slots: v.t.slots, for: v.for, pairs_active: activePairs(v.t, v.members),
       members: v.members.map(m => ({
         id: m, missing: !owned.has(m), busy: owned.has(m) && busy.has(m) && !v.for.includes(m),
       })),
@@ -411,9 +454,10 @@
     if (slots.some(s => new Set(s).size !== s.length)) fail("Một slot không được có nhân vật trùng");
     const valid = new Set(db.resonators.map(r => r.id));
     if (slots.some(s => s.some(x => !valid.has(x)))) fail("Có nhân vật không tồn tại");
-    if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
+    const pairs = normPairs(slots, data.pairs);
+    if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), pairs, score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), score, tier: s("tier"), patch: s("patch"), team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, tier: s("tier"), patch: s("patch"), team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -515,7 +559,8 @@
     if (missing.size) fail("Thiếu resonator: " + [...missing].sort().join(", "));
     db.teams = db.teams.filter(t => t.source !== "prydwen");
     for (const t of seed.teams) {
-      db.teams.push({ ...t, id: nextId(db.teams), slots: t.slots.map(s => s.map(id => n2i[seedName[id]])), source: "prydwen" });
+      db.teams.push({ ...t, id: nextId(db.teams), slots: t.slots.map(s => s.map(id => n2i[seedName[id]])),
+        pairs: (t.pairs || []).map(pr => pr.map(id => n2i[seedName[id]])), source: "prydwen" });
     }
     saveDb(db);
     return { ok: true, count: seed.teams.length };
@@ -531,6 +576,7 @@
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
         tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
+        pairs: (t.pairs || []).filter(pr => res[pr[0]] && res[pr[1]]).map(pr => [res[pr[0]].name, res[pr[1]].name]),
       })),
     };
   }
@@ -556,7 +602,8 @@
       const key = (t.name || "") + "|" + JSON.stringify(slots);
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({
-        id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers), score: parseFloat(t.score || 0), tier: t.tier || "",
+        id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers),
+        pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: parseFloat(t.score || 0), tier: t.tier || "",
         patch: t.patch || "", team_type: t.team_type || "", notes: t.notes || "",
         active: t.active === 0 || t.active === false ? 0 : 1, source: t.source || "user",
       });
@@ -585,13 +632,64 @@
     const teams = sol.picked.map(c => {
       const t = tmap.get(c.tid);
       return { team_id: t.id, name: t.name, tier: t.tier, team_type: t.team_type, patch: t.patch,
-        notes: t.notes, score: c.score, members: c.ids.slice(), slots: t.slots };
+        notes: t.notes, score: c.score, members: c.ids.slice(), slots: t.slots, pairs_active: activePairs(t, c.ids) };
     });
     return {
       teams, score: sol.score, approx: sol.approx, usable_templates: sol.usable, owned_count: caps.size,
       leftover,
       incomplete: incompleteSuggestions(leftover.map(l => l.id), new Set(caps.keys()), busy, templates),
     };
+  });
+
+  // Chấm điểm các team do người dùng tự kéo thả (có thể thiếu người, thứ tự slot tùy ý).
+  // Mỗi team: tìm team trong DB khớp nhất (điểm cao nhất) mà mọi thành viên đang có đều nằm được trong 1 slot riêng.
+  // - Đủ 3 người + khớp: trả về điểm và thứ tự đã sắp theo slot của team DB (order).
+  // - Thiếu người: trả về gợi ý (hints) cho các slot còn trống.
+  route("POST", /^\/api\/eval-teams$/, (_, data) => {
+    const templates = teamsView(loadDb(), true);
+    return (data.teams || []).map(raw => {
+      const mem = (raw || []).filter(x => x !== null && x !== undefined).map(Number);
+      if (!mem.length || new Set(mem).size !== mem.length) return { matched: false, complete: false };
+      let best = null;
+      for (const t of templates) {
+        if (!t.slots || t.slots.length !== 3) continue;
+        const assign = [null, null, null];
+        const base = new Map();   // id -> bậc gốc trong slot đã gán
+        const rec = (k, _pen) => {
+          if (k === mem.length) {
+            const bst = boostedIds(t, mem);
+            let pen = 0;
+            for (const [id, idx] of base) pen += effIdx(idx, bst.has(id));
+            const sc = r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
+            if (!best || sc > best.sc) best = { t, sc, assign: assign.slice() };
+            return;
+          }
+          for (let si = 0; si < 3; si++) {
+            if (assign[si] !== null) continue;
+            const idx = t.slots[si].indexOf(mem[k]);
+            if (idx < 0) continue;
+            assign[si] = mem[k];
+            base.set(mem[k], slotTierIdx(t, si, idx));
+            rec(k + 1, 0);
+            base.delete(mem[k]);
+            assign[si] = null;
+          }
+        };
+        rec(0, 0);
+      }
+      if (!best) return { matched: false, complete: mem.length === 3 };
+      const { t, sc, assign } = best;
+      const complete = mem.length === 3;
+      return {
+        matched: true, complete, team_id: t.id, name: t.name, tier: t.tier, team_type: t.team_type,
+        patch: t.patch, notes: t.notes, slots: t.slots,
+        score: complete ? sc : null,
+        order: complete ? assign : null,
+        pairs_active: complete ? activePairs(t, mem) : [],
+        hints: complete ? [] : assign.map((m, si) => m === null
+          ? { si, ids: t.slots[si].filter(i => !mem.includes(i)) } : null).filter(Boolean),
+      };
+    });
   });
 
   route("POST", /^\/api\/pull-advisor$/, (_, data) => {
@@ -648,11 +746,12 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "tiers", "score", "tier", "patch", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "tier", "patch", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
-      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : t[k]]))));
+      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : t[k]])
+        .filter(([k, v]) => !(k === "pairs" && !v.length)))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
       "window.TIER_SCORE = " + line(root.TIER_SCORE) + ";\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";

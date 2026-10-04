@@ -3,6 +3,7 @@ let byId = {};
 let teams = [];
 let slots = [[], [], []];
 let slotTiers = [[], [], []];   // bậc S/A/B/C của từng nhân vật trong slot (song song với slots)
+let pairs = [];                 // cặp chuẩn [[idA, idB], ...] (0 = chưa chọn): ghép đúng cặp -> cả hai được nâng 1 bậc
 const TIER_LIST = ["S", "A", "B", "C"];
 const tierRank = v => Math.max(TIER_LIST.indexOf(v), 0);
 // giữ danh sách trong slot luôn xếp từ bậc cao xuống thấp (ổn định: cùng bậc giữ nguyên thứ tự thêm)
@@ -82,6 +83,48 @@ function wireSlotSearch(inp) {
   inp.addEventListener("blur", () => setTimeout(() => list.classList.add("hidden"), 120));
 }
 
+// ------------------------------------------------------------ cặp chuẩn
+const inSlots = id => slots.some(s => s.includes(id));
+const slotOf = id => slots.map((s, i) => s.includes(id) ? i : -1).filter(i => i >= 0);
+// 2 nhân vật đứng chung đội hình được khi có 2 slot KHÁC NHAU chứa họ
+const canPair = (a, b) => a && b && a !== b && slotOf(a).some(i => slotOf(b).some(j => i !== j));
+function prunePairs() {
+  pairs = pairs.filter(([a, b]) => (!a || inSlots(a)) && (!b || inSlots(b)));
+}
+function pairBadge(id) {
+  const partners = pairs.filter(p => p.includes(id) && canPair(p[0], p[1])).map(p => byId[p[0] === id ? p[1] : p[0]]?.name).filter(Boolean);
+  return partners.length ? ` <span class="pair-badge" title="Đi cùng ${esc(partners.join(", "))} thì được nâng 1 bậc">🔗 ${esc(partners.join(", "))}</span>` : "";
+}
+function renderPairs() {
+  const box = document.getElementById("pairsBox");
+  const teamIds = [...new Set(slots.flat())];
+  const opt = (sel, filterFn) => `<option value="">— chọn nhân vật —</option>` +
+    teamIds.filter(filterFn).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(byId[id]?.name || "?")} (slot ${slotOf(id).map(i => i + 1).join("/")})</option>`).join("");
+  box.innerHTML = `
+    <div class="pairs-head"><b>🔗 Cặp chuẩn</b>
+      <span class="hint">Hai nhân vật đúng cặp cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên.</span></div>
+    ${pairs.length ? pairs.map(([a, b], i) => {
+      const bad = a && b && !canPair(a, b);
+      return `<div class="pair-row ${bad ? "bad" : ""}">
+        <select data-pair="${i}" data-side="0">${opt(a, id => id !== b)}</select>
+        <span class="pair-link">🔗</span>
+        <select data-pair="${i}" data-side="1">${opt(b, id => id !== a && (!a || canPair(a, id)))}</select>
+        <button type="button" class="danger" data-pair-del="${i}">✕</button>
+        ${bad ? '<span class="hint">2 người này nằm cùng slot nên không đứng chung đội hình được</span>' : ""}
+      </div>`;
+    }).join("") : '<div class="hint">Chưa có cặp nào.</div>'}
+    <button type="button" class="small ghost" id="addPair" ${teamIds.length < 2 ? "disabled" : ""}>＋ Thêm cặp</button>`;
+  box.querySelectorAll("select[data-pair]").forEach(sel => sel.addEventListener("change", () => {
+    pairs[+sel.dataset.pair][+sel.dataset.side] = Number(sel.value) || 0;
+    renderSlots();
+  }));
+  box.querySelectorAll("button[data-pair-del]").forEach(b => b.addEventListener("click", () => {
+    pairs.splice(+b.dataset.pairDel, 1);
+    renderSlots();
+  }));
+  box.querySelector("#addPair").addEventListener("click", () => { pairs.push([0, 0]); renderSlots(); });
+}
+
 function renderSlots() {
   const box = document.getElementById("slots");
   box.innerHTML = slots.map((ids, si) => `
@@ -91,7 +134,7 @@ function renderSlots() {
         ${ids.length ? ids.map((id, k) => `
           <div class="slot-chip">
             ${faceHTML(byId[id], { size: "sm" })}
-            <span class="grow">${esc(byId[id]?.name || "?")}</span>
+            <span class="grow">${esc(byId[id]?.name || "?")}${pairBadge(id)}</span>
             <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 1 điểm)">
               ${TIER_LIST.map(t => `<option value="${t}" ${t === (slotTiers[si][k] || "S") ? "selected" : ""}>${t}</option>`).join("")}
             </select>
@@ -112,7 +155,7 @@ function renderSlots() {
   }
   box.querySelectorAll("button[data-act]").forEach(btn => btn.addEventListener("click", () => {
     const si = Number(btn.dataset.s), k = Number(btn.dataset.k);
-    if (btn.dataset.act === "del") { slots[si].splice(k, 1); slotTiers[si].splice(k, 1); }
+    if (btn.dataset.act === "del") { slots[si].splice(k, 1); slotTiers[si].splice(k, 1); prunePairs(); }
     renderSlots();
   }));
   box.querySelectorAll("select[data-tier]").forEach(sel => sel.addEventListener("change", () => {
@@ -121,6 +164,7 @@ function renderSlots() {
     sortSlot(si);
     renderSlots();
   }));
+  renderPairs();
 }
 
 // ------------------------------------------------------------ team form
@@ -144,6 +188,7 @@ function resetForm() {
   scoreTouched = false;
   slots = [[], [], []];
   slotTiers = [[], [], []];
+  pairs = [];
   document.getElementById("teamForm").reset();
   document.getElementById("formTitle").textContent = "Thêm team";
   document.getElementById("saveBtn").textContent = "Thêm team";
@@ -157,6 +202,7 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
     name: document.getElementById("teamName").value,
     slots,
     tiers: slotTiers,
+    pairs: pairs.filter(([a, b]) => canPair(a, b)),
     score: document.getElementById("score").value,
     tier: document.getElementById("tier").value,
     patch: document.getElementById("patch").value,
@@ -181,6 +227,7 @@ function editTeam(id) {
   slots = t.slots.map(s => [...s]);
   // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
   slotTiers = t.slots.map((s, si) => s.map((_, k) => (t.tiers && t.tiers[si] && t.tiers[si][k]) || TIER_LIST[Math.min(k, 3)]));
+  pairs = (t.pairs || []).map(p => [...p]);
   document.getElementById("teamName").value = t.name || "";
   document.getElementById("score").value = t.score;
   document.getElementById("tier").value = t.tier || "";
