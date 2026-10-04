@@ -594,6 +594,50 @@
     };
   });
 
+  // Chấm điểm các team do người dùng tự kéo thả (có thể thiếu người, thứ tự slot tùy ý).
+  // Mỗi team: tìm team trong DB khớp nhất (điểm cao nhất) mà mọi thành viên đang có đều nằm được trong 1 slot riêng.
+  // - Đủ 3 người + khớp: trả về điểm và thứ tự đã sắp theo slot của team DB (order).
+  // - Thiếu người: trả về gợi ý (hints) cho các slot còn trống.
+  route("POST", /^\/api\/eval-teams$/, (_, data) => {
+    const templates = teamsView(loadDb(), true);
+    return (data.teams || []).map(raw => {
+      const mem = (raw || []).filter(x => x !== null && x !== undefined).map(Number);
+      if (!mem.length || new Set(mem).size !== mem.length) return { matched: false, complete: false };
+      let best = null;
+      for (const t of templates) {
+        if (!t.slots || t.slots.length !== 3) continue;
+        const assign = [null, null, null];
+        const rec = (k, pen) => {
+          if (k === mem.length) {
+            const sc = r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
+            if (!best || sc > best.sc) best = { t, sc, assign: assign.slice() };
+            return;
+          }
+          for (let si = 0; si < 3; si++) {
+            if (assign[si] !== null) continue;
+            const idx = t.slots[si].indexOf(mem[k]);
+            if (idx < 0) continue;
+            assign[si] = mem[k];
+            rec(k + 1, pen + slotTierIdx(t, si, idx));
+            assign[si] = null;
+          }
+        };
+        rec(0, 0);
+      }
+      if (!best) return { matched: false, complete: mem.length === 3 };
+      const { t, sc, assign } = best;
+      const complete = mem.length === 3;
+      return {
+        matched: true, complete, team_id: t.id, name: t.name, tier: t.tier, team_type: t.team_type,
+        patch: t.patch, notes: t.notes, slots: t.slots,
+        score: complete ? sc : null,
+        order: complete ? assign : null,
+        hints: complete ? [] : assign.map((m, si) => m === null
+          ? { si, ids: t.slots[si].filter(i => !mem.includes(i)) } : null).filter(Boolean),
+      };
+    });
+  });
+
   route("POST", /^\/api\/pull-advisor$/, (_, data) => {
     const db = loadDb();
     const includeUpcoming = !!data.include_upcoming;

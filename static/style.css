@@ -394,3 +394,50 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .chip-tier.t-A { color: #7ee0d0; border-color: #7ee0d0; }
 .chip-tier.t-B { color: #7fa6ff; border-color: #7fa6ff; }
 .chip-tier.t-C { color: #aab3cc; border-color: #aab3cc; }
+
+/* ---------- kéo thả team ---------- */
+.dnd-hint { margin: -4px 0 10px; }
+.dg { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-user-drag: none; }
+.dg img { -webkit-user-drag: none; pointer-events: none; }
+.dg.dragging { opacity: .3; }
+.drag-ghost {
+  position: fixed; z-index: 9999; pointer-events: none; transform: translate(-50%, -50%) scale(1.08);
+  opacity: .92; filter: drop-shadow(0 8px 14px rgba(0,0,0,.55)); margin: 0;
+}
+.head-r { display: flex; align-items: center; gap: 8px; }
+.score-pill.zero { color: var(--muted); background: rgba(141,154,184,.08); border-color: rgba(141,154,184,.3); font-size: 12px; white-space: nowrap; }
+.rm-team { width: 24px; height: 24px; padding: 0; border-radius: 50%; line-height: 1; font-size: 12px;
+  background: transparent; color: var(--muted); border: 1px solid var(--line); cursor: pointer; }
+.rm-team:hover { color: var(--danger); border-color: var(--danger); }
+.team-card.manual { border-style: dashed; }
+.ts { border-radius: 14px; padding: 4px 2px; transition: background .12s; }
+.ts-box { position: relative; width: 72px; height: 72px; }
+.ts-empty { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 16px;
+  border: 2px dashed var(--line); color: var(--muted); font-size: 24px; background: rgba(0,0,0,.15); }
+.member .nm.empty-nm { color: #5d6684; font-weight: 600; }
+.ts .rm { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; padding: 0; border-radius: 50%;
+  line-height: 1; font-size: 13px; background: var(--bg2); color: var(--muted); border: 1px solid var(--line); cursor: pointer; }
+.ts .rm:hover { color: var(--danger); border-color: var(--danger); }
+.ts.drop-hover { background: rgba(126,224,208,.12); outline: 2px dashed var(--accent2); }
+.leftover { min-height: 56px; padding: 8px; border-radius: 14px; border: 1px dashed transparent; }
+.leftover.drop-hover { background: rgba(255,107,122,.08); border-color: var(--danger); }
+.add-team-row { margin-top: 12px; }
+.add-team-row button { width: 100%; padding: 12px; border: 2px dashed var(--line); background: transparent;
+  color: var(--accent2); border-radius: 14px; font-weight: 700; cursor: pointer; }
+.add-team-row button:hover { border-color: var(--accent2); background: rgba(126,224,208,.06); }
+.ts-box .dg { display: block; width: 72px; height: 72px; }
+.ts-box .dg .face { display: block; }
+
+.add-team-row { display: flex; gap: 10px; }
+.add-team-row button { flex: 1; }
+.add-team-row button.export { border: 2px solid var(--accent); color: #fff; background: rgba(91,140,255,.18); }
+.add-team-row button.export:hover { background: rgba(91,140,255,.32); }
+
+/* khung xem trước dự phòng khi xuất ảnh */
+.exp-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(5,8,16,.85); overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
+.exp-box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; max-width: 100%; }
+.exp-note { display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 12px; max-width: 560px; }
+.exp-shot { background: #0d1220; padding: 18px; display: inline-block; }
+.exp-grid { display: grid; grid-template-columns: repeat(2, auto); gap: 18px 28px; }
+.exp-team { display: flex; gap: 8px; }
+.exp-blank { width: 72px; height: 72px; }
