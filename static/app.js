@@ -70,15 +70,6 @@ function buildFilters() {
     rBox.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.r === filterRar));
     renderRoster();
   }));
-
-  const sBox = document.getElementById("stChips");
-  sBox.innerHTML = STATUS_ORDER.map(k =>
-    `<span class="chip" data-st="${k}" style="--c:${STATUS_META[k].color}"><i class="dot"></i>${STATUS_META[k].label}</span>`).join("");
-  sBox.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
-    filterSt = filterSt === ch.dataset.st ? null : ch.dataset.st;
-    sBox.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.st === filterSt));
-    renderRoster();
-  }));
 }
 
 function syncMode() {
