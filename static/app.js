@@ -108,7 +108,13 @@ function syncMode() {
 
 // ---------------------------------------------------------------- roster
 const isHealer = id => !!byId[id] && byId[id].role === "Healer";
-
+// Rover có 4 bản nhưng chỉ dùng 1 bản: chọn bản này thì bỏ các bản kia
+const isRover = id => /^Rover\b/.test(byId[id]?.name || "");
+function pickOneRover(id) {
+  resonators.forEach(r => {
+    if (r.id !== id && isRover(r.id)) { selected.delete(r.id); extra.delete(r.id); noExtra.delete(r.id); }
+  });
+}
 // Matrix: Healer đã chọn mặc định có 2 lượt dùng (trừ khi người dùng chủ động bấm −)
 function applyHealerDefaults() {
   if (mode !== "matrix") return;
@@ -182,7 +188,7 @@ function renderRoster() {
       else if (e.target.closest(".minus")) { extra.delete(id); if (isHealer(id)) noExtra.add(id); }
       else {
         if (selected.has(id)) { selected.delete(id); extra.delete(id); noExtra.delete(id); }
-        else selected.add(id);
+        else { selected.add(id); if (isRover(id)) pickOneRover(id); }
       }
       afterChange();
     });
@@ -735,7 +741,11 @@ document.querySelectorAll("#modeSeg button").forEach(b => b.addEventListener("cl
 document.getElementById("search").addEventListener("input", renderRoster);
 document.getElementById("onlySel").addEventListener("change", renderRoster);
 document.getElementById("selAll").addEventListener("click", () => {
-  visibleList().forEach(r => { if (r.released) selected.add(r.id); });
+  visibleList().forEach(r => {
+  if (!r.released) return;
+  if (isRover(r.id) && [...selected].some(isRover)) return;   // chỉ giữ 1 bản Rover
+  selected.add(r.id);
+});
   afterChange();
 });
 document.getElementById("clearAll").addEventListener("click", () => {
