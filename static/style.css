@@ -475,7 +475,17 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
   width: 30px; height: 30px; padding: 0; flex: 0 0 auto; border-radius: 9px;
   font-size: 18px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
 }
-.panel-head > div:not(.tools) { flex: 1; min-width: 0; }
+.panel-head > div:not(.tools):not(.seg) {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-head > .seg {
+  flex: 0 0 auto;
+  width: max-content;
+  margin-left: auto;
+  white-space: nowrap;
+}
 .panel.collapsed { padding-top: 14px; padding-bottom: 14px; }
 .panel.collapsed > :not(.panel-head) { display: none !important; }
 .panel.collapsed .panel-head .tools, .panel.collapsed .panel-head p { display: none; }
