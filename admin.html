@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Optimizer – Admin</title>
-<link rel="stylesheet" href="static/style.css?v=13">
+<link rel="stylesheet" href="static/style.css?v=14">
 </head>
 <body>
 <header class="top">
@@ -36,6 +36,13 @@
       </div>
     </div>
     <form id="teamForm">
+      <div class="kind-row">
+        <span class="hint">Dạng team:</span>
+        <div class="seg small" id="kindSeg" title="Meta = team chuẩn · Alternative = team chắp vá (dùng tạm khi chưa đủ người meta)">
+          <button type="button" data-kind="meta" class="active">⭐ Meta team</button>
+          <button type="button" data-kind="alt">🧩 Alternative team</button>
+        </div>
+      </div>
       <input id="teamName" placeholder="Tên team, ví dụ: Hiyuki Hypercarry">
       <div class="slots" id="slots"></div>
       <div class="pairs-box" id="pairsBox"></div>
@@ -55,7 +62,7 @@
     <div class="panel-head">
       <div>
         <h2>Database team <span class="hint" id="teamCount"></span></h2>
-        <p class="hint">Tắt công tắc “Dùng” để loại tạm một team khỏi tính toán mà không cần xóa.</p>
+        <p class="hint">Database chia 2 nửa: <b>Meta team</b> (team chuẩn) và <b>Alternative team</b> (team chắp vá). Tắt công tắc “Dùng” để loại tạm một team khỏi tính toán mà không cần xóa.</p>
       </div>
       <div class="tools">
         <button class="small" id="exportBtn">⬇ Xuất JSON</button>
@@ -104,10 +111,10 @@
 </nav>
 
 <script src="static/vendor/highs.js"></script>
-<script src="static/data.js?v=7"></script>
-<script src="static/engine.js?v=7"></script>
+<script src="static/data.js?v=8"></script>
+<script src="static/engine.js?v=12"></script>
 <script src="static/common.js?v=9"></script>
 <script src="static/gate.js?v=7"></script>
-<script src="static/admin.js?v=7"></script>
+<script src="static/admin.js?v=8"></script>
 </body>
 </html>

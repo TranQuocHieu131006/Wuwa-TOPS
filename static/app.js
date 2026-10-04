@@ -207,13 +207,6 @@ function renderMembers(ids, flags = []) {
   }).join("")}</div>`;
 }
 
-// dòng "cặp chuẩn đang khớp" (đủ cả 2 người -> mỗi người được nâng 1 bậc)
-function pairLine(list) {
-  if (!list || !list.length) return "";
-  return `<div class="pair-line">🔗 Cặp chuẩn (+1 bậc): ${list.map(p =>
-    p.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" + ")).join(" · ")}</div>`;
-}
-
 function teamCard(t, idx) {
   return `<div class="team-card">
     <div class="head">
@@ -221,7 +214,6 @@ function teamCard(t, idx) {
       <span class="score-pill">${t.score.toFixed(1)}</span>
     </div>
     ${renderMembers(t.members)}
-    ${pairLine(t.pairs_active)}
     ${slotAlts(t, t.members)}
     <div class="card-meta">${esc(t.team_type || "")}
       ${t.notes ? `<br>${esc(t.notes)}` : ""}</div>
@@ -236,7 +228,6 @@ function incompleteCard(x) {
       <span class="score-pill">${x.score.toFixed(1)}</span>
     </div>
     ${renderMembers(x.members.map(m => m.id), x.members)}
-    ${pairLine(x.pairs_active)}
     ${slotAlts(x, x.members.map(m => m.id))}
     <div class="card-meta">${esc(x.team_type || "")}
       · dành cho <span class="for">${x.for.map(i => esc(byId[i]?.name || "?")).join(", ")}</span>
@@ -283,7 +274,7 @@ function layoutTeamCard(t, ti) {
   } else if (full && matched) {
     title = ev.name || "Team";
     pill = `<span class="score-pill">${ev.score.toFixed(1)}</span>`;
-    alts = pairLine(ev.pairs_active) + slotAlts(ev, ev.order || t.members);
+    alts = slotAlts(ev, ev.order || t.members);
     meta = `${esc(ev.team_type || "")}${ev.notes ? `<br>${esc(ev.notes)}` : ""}`;
   } else if (full) {
     title = "Team tự xếp";
@@ -567,7 +558,7 @@ async function runPull(silent = false) {
     document.getElementById("pullTitle").innerHTML = `Nên pull nhân vật nào cho ${modeTag(mode)}?`;
     document.getElementById("pullHint").textContent =
       `Tính theo luật ${MODE_NAME[mode]}${mode === "matrix" ? " (mỗi nhân vật dùng tối đa ×2)" : " (mỗi nhân vật dùng 1 lần)"}. ` +
-      `Điểm hiện tại: ${d.base_score.toFixed(1)}. Điểm pull = mức tăng tổng điểm team nếu bạn có thêm nhân vật đó (S0) + điểm Potential. Xếp từ cao xuống thấp.`;
+      `Điểm hiện tại: ${d.base_score.toFixed(1)}. Điểm pull = mức tăng tổng điểm team nếu bạn có thêm nhân vật đó (S0) + điểm Potential + điểm Meta (+5 nếu pull xong là đủ bộ meta, +2.5 nếu mới hoàn thành cặp, khi DPS đang chơi team alt). Xếp từ cao xuống thấp.`;
     document.getElementById("potLegend").innerHTML = potLegendHTML();
 
     const pullCard = (x, i) => {
@@ -579,14 +570,17 @@ async function runPull(silent = false) {
         ? `Điểm mới: ${x.new_score.toFixed(1)} · mở khóa ${x.unlocked} team`
         : x.unlocked > 0
           ? `Không tăng tổng điểm ngay, nhưng mở khóa ${x.unlocked} team (team tốt nhất ${x.best_unlocked.toFixed(1)})`
-          : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ điểm Potential";
+          : x.meta
+            ? "Chưa mở khóa team mới ngay, nhưng ghép cặp được với nhân vật đang có trong meta team"
+            : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ điểm Potential";
       return `<div class="pull">
         <div class="no">${i + 1}</div>
         ${faceHTML(r, { size: "lg" })}
         <div>
           <div class="nm">${esc(x.name)} ${r ? statusTag(r.status) : ""}</div>
           <div class="sub">${sub}</div>
-          <div class="breakdown">Team ${fmtSigned(x.gain)} · Potential ${potBadge(x.potential)} = <b>${fmtSigned(x.pull)}</b></div>
+          <div class="breakdown">Team ${fmtSigned(x.gain)} · Potential ${potBadge(x.potential)}${x.meta_bonus ? ` · Meta <b>${fmtSigned(x.meta_bonus)}</b>` : ""} = <b>${fmtSigned(x.pull)}</b></div>
+          ${x.meta ? `<div class="meta-note">⭐ Đưa ${x.meta.dps.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" / ")} từ team alt lên meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""} — ${x.meta.complete ? "đủ bộ meta" : "hoàn thành cặp, còn thiếu 1 người"}</div>` : ""}
           ${teams ? `<div class="mini-teams">${teams}</div>` : ""}
         </div>
         <div class="gain ${x.pull > 0 ? "" : x.pull < 0 ? "neg" : "zero"}" title="Điểm pull">${x.pull > 0 ? "+" : x.pull < 0 ? "−" : ""}${Math.abs(x.pull).toFixed(1)}</div>

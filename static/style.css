@@ -460,3 +460,10 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .pull-group h3.sec { margin: 6px 0 4px; }
 .pull-group .hint.g { margin: 0 0 10px; }
 
+
+/* dạng team: Meta / Alternative */
+.kind-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.kind-head { margin: 18px 0 8px; }
+.kind-head.meta { color: #ffd76a; }
+.kind-head.alt { color: #8fe9ff; }
+.meta-note { margin-top: 4px; font-size: 12px; color: #ffd76a; }

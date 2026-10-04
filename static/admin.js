@@ -4,6 +4,7 @@ let teams = [];
 let slots = [[], [], []];
 let slotTiers = [[], [], []];   // bậc S→F của từng nhân vật trong slot (song song với slots)
 let pairs = [];                 // cặp chuẩn [[idA, idB, idC], ...] (0 = ô trống, tối đa 1 ô trống): đủ bộ -> mỗi người được nâng 1 bậc
+let teamKind = "meta";           // dạng team đang chọn trong form: "meta" (team chuẩn) | "alt" (team chắp vá)
 const TIER_LIST = ["S", "A", "B", "C", "D", "E", "F"];
 const tierRank = v => Math.max(TIER_LIST.indexOf(v), 0);
 // giữ danh sách trong slot luôn xếp từ bậc cao xuống thấp (ổn định: cùng bậc giữ nguyên thứ tự thêm)
@@ -183,8 +184,15 @@ function renderSlots() {
 // ------------------------------------------------------------ team form
 document.getElementById("score").addEventListener("input", () => { scoreTouched = true; });
 
+function syncKind() {
+  document.querySelectorAll("#kindSeg button").forEach(b => b.classList.toggle("active", b.dataset.kind === teamKind));
+}
+document.querySelectorAll("#kindSeg button").forEach(b => b.addEventListener("click", () => { teamKind = b.dataset.kind; syncKind(); }));
+
 function resetForm() {
   editing = null;
+  teamKind = "meta";
+  syncKind();
   scoreTouched = false;
   slots = [[], [], []];
   slotTiers = [[], [], []];
@@ -204,6 +212,7 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
     tiers: slotTiers,
     pairs: pairs.filter(pairOk).map(pairIds),
     score: document.getElementById("score").value,
+    kind: teamKind,
     team_type: document.getElementById("teamType").value,
     notes: document.getElementById("notes").value,
   };
@@ -221,6 +230,8 @@ function editTeam(id) {
   const t = teams.find(x => x.id === id);
   if (!t) return;
   editing = id;
+  teamKind = t.kind === "alt" ? "alt" : "meta";
+  syncKind();
   scoreTouched = true;
   slots = t.slots.map(s => [...s]);
   // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
@@ -258,11 +269,7 @@ function renderTeams() {
     return (t.name || "").toLowerCase().includes(q) || names.includes(q);
   });
   document.getElementById("teamCount").textContent = `(${list.length}/${teams.length})`;
-  document.getElementById("teamTable").innerHTML = `
-    <table>
-      <thead><tr><th>Dùng</th><th>Team</th><th>Thành phần (slot 1 · 2 · 3)</th><th>Điểm</th><th></th></tr></thead>
-      <tbody>
-      ${list.map(t => `<tr class="${t.active ? "" : "off"}">
+  const rows = l => l.map(t => `<tr class="${t.active ? "" : "off"}">
         <td><input type="checkbox" ${t.active ? "checked" : ""} data-act="${t.id}"></td>
         <td><b>${esc(t.name || "—")}</b><div class="src">${esc(t.team_type || "")}${t.notes ? " · " + esc(t.notes) : ""}
             ${t.source === "prydwen" ? " · Prydwen" : ""}</div></td>
@@ -271,14 +278,25 @@ function renderTeams() {
         <td><b>${Number(t.score).toFixed(1)}</b></td>
         <td><div class="row-actions">
           <button class="small" data-edit="${t.id}">Sửa</button>
+          <button class="small" data-kind="${t.id}" data-to="${t.kind === "alt" ? "meta" : "alt"}" title="Chuyển sang ${t.kind === "alt" ? "Meta" : "Alternative"}">${t.kind === "alt" ? "→ Meta" : "→ Alt"}</button>
           <button class="small danger" data-del="${t.id}">Xóa</button></div></td>
-      </tr>`).join("")}
-      </tbody>
-    </table>`;
+      </tr>`).join("");
+  const half = (icon, title, cls, l) => `
+    <h3 class="sec kind-head ${cls}">${icon} ${title} <span class="hint">(${l.length})</span></h3>
+    ${l.length ? `<table>
+      <thead><tr><th>Dùng</th><th>Team</th><th>Thành phần (slot 1 · 2 · 3)</th><th>Điểm</th><th></th></tr></thead>
+      <tbody>${rows(l)}</tbody></table>` : `<p class="hint">Chưa có team nào ở nhóm này.</p>`}`;
+  document.getElementById("teamTable").innerHTML =
+    half("⭐", "Meta team", "meta", list.filter(t => t.kind !== "alt")) +
+    half("🧩", "Alternative team", "alt", list.filter(t => t.kind === "alt"));
   const tb = document.getElementById("teamTable");
   tb.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editTeam(Number(b.dataset.edit))));
   tb.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => deleteTeam(Number(b.dataset.del))));
   tb.querySelectorAll("[data-act]").forEach(b => b.addEventListener("change", () => toggleActive(Number(b.dataset.act), b.checked)));
+  tb.querySelectorAll("[data-kind]").forEach(b => b.addEventListener("click", async () => {
+    try { await api(`/api/teams/${b.dataset.kind}/kind`, "POST", { kind: b.dataset.to }); await load(); }
+    catch (err) { toast(err.message, true); }
+  }));
 }
 document.getElementById("teamSearch").addEventListener("input", renderTeams);
 

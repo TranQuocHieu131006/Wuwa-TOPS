@@ -65,6 +65,47 @@
   }
   const effIdx = (idx, boosted) => boosted ? Math.max(idx - 1, 0) : idx;
 
+  // Dạng team: "meta" = team chuẩn, "alt" = alternative (team chắp vá). Dữ liệu cũ chưa có -> coi là meta.
+  const KINDS = ["meta", "alt"];
+  const normKind = v => v === "alt" ? "alt" : "meta";
+
+  // ---- Điểm cộng "lên meta" cho Nên pull ai? ----
+  // Team meta có cặp (A,B) + người thứ 3 (C). Nếu DPS của team meta đó đang phải chơi trong team alt, thì pull người còn thiếu của cặp:
+  //   +5   nếu đã có người kia của cặp VÀ C  (pull xong là đủ bộ meta)
+  //   +2.5 nếu đã có người kia của cặp nhưng chưa có C (mới hoàn thành cặp)
+  const META_FULL = 5, META_PAIR = 5;
+  // cặp 2 người (a,b): có cách xếp a,b vào 2 slot khác nhau mà slot còn lại có người đang sở hữu (C)?
+  function pairHasC(t, pair, owned) {
+    const [a, b] = pair;
+    for (let i = 0; i < 3; i++) if (t.slots[i].includes(a))
+      for (let j = 0; j < 3; j++) if (j !== i && t.slots[j].includes(b)) {
+        const k = 3 - i - j;
+        if (t.slots[k].some(c => c !== a && c !== b && owned.has(c))) return true;
+      }
+    return false;
+  }
+  // trả về { bonus, team, dps, complete } tốt nhất cho nhân vật x (chưa sở hữu); bonus = 0 nếu không có
+  function metaBonusFor(x, templates, owned, usedMeta) {
+    let best = { bonus: 0 };
+    for (const t of templates) {
+      if (t.kind !== "meta" || !t.slots.some(s => s.includes(x))) continue;
+      // DPS (slot 1) của team meta này đang được dùng trong team alt
+      const dps = t.slots[0].filter(i => i !== x && owned.has(i) && !usedMeta.has(i));
+      if (!dps.length) continue;
+      for (const pair of t.pairs || []) {
+        if (!pair.includes(x)) continue;
+        const others = pair.filter(i => i !== x);
+        const have = others.filter(i => owned.has(i));
+        if (!have.length) continue;                                  // chưa có ai trong cặp -> không cộng
+        let bonus = 0, complete = false;
+        if (pair.length === 3) { complete = have.length === 2; bonus = complete ? META_FULL : META_PAIR; }
+        else if (have.length === 1) { complete = pairHasC(t, pair, owned); bonus = complete ? META_FULL : META_PAIR; }
+        if (bonus > best.bonus) best = { bonus, team: t, dps, complete };
+      }
+    }
+    return best;
+  }
+
   const MAX_COPIES = 2;       // Matrix: tối đa 2 lần dùng / nhân vật
   const CDN = "https://cdn.prydwen.gg/images/wuthering-waves/characters/{slug}_icon.webp";
   const STORE_KEY = "wuwa.admin.db.v1";
@@ -460,7 +501,7 @@
     });
   }
   const teamsView = (db, activeOnly) =>
-    db.teams.filter(t => !activeOnly || t.active).map(clone)
+    db.teams.filter(t => !activeOnly || t.active).map(t => ({ ...clone(t), kind: normKind(t.kind) }))
       .sort((a, b) => b.score - a.score || a.id - b.id);
 
   function fail(msg) { throw new Error(msg); }
@@ -479,7 +520,7 @@
     const pairs = normPairs(slots, data.pairs);
     if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), pairs, score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -562,6 +603,14 @@
     saveDb(db);
     return { ok: true };
   });
+  route("POST", /^\/api\/teams\/(\d+)\/kind$/, ([id], body) => {
+    const db = loadDb();
+    const cur = db.teams.find(x => x.id === +id);
+    if (!cur) fail("Không tìm thấy team");
+    cur.kind = normKind(body && body.kind);
+    saveDb(db);
+    return { ok: true };
+  });
   route("DELETE", /^\/api\/teams\/(\d+)$/, ([id]) => {
     const db = loadDb();
     const n = db.teams.length;
@@ -594,7 +643,7 @@
       version: 4,
       resonators: resView({ resonators: db.resonators }).map(r => ({ name: r.name, rarity: r.rarity, element: r.element, released: r.released, status: r.status, role: r.role, date: r.date, potential: r.potential })),
       teams: teamsView(db, false).map(t => ({
-        name: t.name, score: t.score, tier: t.tier, patch: t.patch, team_type: t.team_type,
+        name: t.name, score: t.score, tier: t.tier, patch: t.patch, kind: t.kind, team_type: t.team_type,
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
         tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
@@ -626,7 +675,7 @@
       db.teams.push({
         id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers),
         pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: parseFloat(t.score || 0), tier: t.tier || "",
-        patch: t.patch || "", team_type: t.team_type || "", notes: t.notes || "",
+        patch: t.patch || "", kind: normKind(t.kind), team_type: t.team_type || "", notes: t.notes || "",
         active: t.active === 0 || t.active === false ? 0 : 1, source: t.source || "user",
       });
       existing.add(key); added++;
@@ -730,6 +779,10 @@
     const pool = buildPool(templates, universe);
 
     const base = solve(templates, caps, 3000, pool);
+    // nhân vật đang được dùng trong team alt (theo cách xếp tối ưu hiện tại)
+    const usedMeta = new Set();
+    for (const c of base.picked) if ((tmap.get(c.tid) || {}).kind === "meta") c.ids.forEach(i => usedMeta.add(i));
+    const ownedSet = new Set(caps.keys());
     const perSim = Math.max(300, Math.min(1500, 15000 / Math.max(candidates.length, 1)));
     const results = [];
     for (const r of candidates) {
@@ -741,10 +794,14 @@
       const gain = r2(after.score - base.score);
       const newTeams = after.picked.filter(c => c.ids.includes(r.id));
       const potPts = root.POTENTIAL_POINTS[r.potential] || 0;
+      const mb = metaBonusFor(r.id, templates, ownedSet, usedMeta);
       results.push({
         id: r.id, name: r.name, gain, new_score: after.score,
-        potential: r.potential, potential_pts: potPts, pull: r2(gain + potPts),
-        pairable: unlocked.length > 0,                       // ghép được ít nhất 1 team với nhân vật đang có
+        potential: r.potential, potential_pts: potPts,
+        meta_bonus: mb.bonus,
+        meta: mb.bonus ? { team_id: mb.team.id, name: mb.team.name, dps: mb.dps, complete: mb.complete } : null,
+        pull: r2(gain + potPts + mb.bonus),
+        pairable: unlocked.length > 0 || mb.bonus > 0,    // ghép được ít nhất 1 team (hoặc ghép cặp meta) với nhân vật đang có
         unlocked: new Set(unlocked.map(c => c.tid)).size,
         best_unlocked: unlocked.reduce((m, c) => Math.max(m, c.score), 0),
         teams: newTeams.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,
@@ -770,11 +827,11 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "kind", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
-      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : t[k]])
+      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : k === "kind" ? normKind(t.kind) : t[k]])
         .filter(([k, v]) => !(k === "pairs" && !v.length)))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";
@@ -782,7 +839,7 @@
 
   root.engineApi = engineApi;
   root.WuwaEngine = {
-    engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS,
+    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS,
     hasLocalEdits, resetLocalEdits, loadDb, exportJson, ready,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.WuwaEngine;
