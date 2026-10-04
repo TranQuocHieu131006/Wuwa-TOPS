@@ -135,7 +135,7 @@
     } catch (e) { highs = null; }
   })();
 
-  function solveMilp(concrete, caps, budgetMs) {
+  function solveMilp(concrete, caps, budgetMs, maxTeams) {
     const n = concrete.length;
     const byChar = new Map();
     concrete.forEach((c, j) => c.ids.forEach(i => {
@@ -144,6 +144,7 @@
     }));
     const rows = [];
     for (const [i, list] of byChar) if (list.length > caps.get(i)) rows.push(`c${i}: ` + list.map(j => "x" + j).join(" + ") + ` <= ${caps.get(i)}`);
+    if (maxTeams && maxTeams < n) rows.push("cap: " + concrete.map((_, j) => "x" + j).join(" + ") + ` <= ${maxTeams}`);
     const lp = "Maximize\n obj: " + concrete.map((c, j) => `${c.pts} x${j}`).join(" + ") +
       "\nSubject To\n " + (rows.length ? rows.join("\n ") : "free: x0 >= 0") +
       "\nBinary\n " + concrete.map((_, j) => "x" + j).join(" ") + "\nEnd\n";
@@ -253,7 +254,7 @@
   }
 
   // caps: Map(id -> số lần dùng tối đa). pool: danh sách team cụ thể dựng sẵn (tuỳ chọn).
-  function solve(templates, caps, budgetMs = 4000, pool = null) {
+  function solve(templates, caps, budgetMs = 4000, pool = null, maxTeams = null) {
     let concrete;
     if (pool) concrete = pool.filter(c => c.ids.every(i => caps.has(i)));
     else concrete = buildPool(templates, new Set(caps.keys()));
@@ -262,7 +263,7 @@
 
     if (highs) {
       try {
-        const out = solveMilp(concrete, caps, budgetMs);
+        const out = solveMilp(concrete, caps, budgetMs, maxTeams);
         if (out) {
           const picked = out[1].map(ci => concrete[ci]).sort((a, b) => b.score - a.score);
           return { picked, score: r2(out[0] / 100), usable, approx: false, concrete };
@@ -285,8 +286,14 @@
       }
       total += sc; picks = picks.concat(pk);
     }
-    const picked = picks.map(ci => concrete[ci]).sort((a, b) => b.score - a.score);
-    return { picked, score: r2(total / 100), usable, approx, concrete };
+    let picked = picks.map(ci => concrete[ci]).sort((a, b) => b.score - a.score);
+    let score = r2(total / 100);
+    if (maxTeams && picked.length > maxTeams) {      // nhánh dự phòng (không có HiGHS): lấy N team điểm cao nhất
+      picked = picked.slice(0, maxTeams);
+      score = r2(picked.reduce((a, c) => a + c.pts, 0) / 100);
+      approx = true;
+    }
+    return { picked, score, usable, approx, concrete };
   }
 
   function buildCaps(owned, duplicates, validIds) {
@@ -619,7 +626,9 @@
     const caps = buildCaps(data.owned || [], data.duplicates || [], valid);
     const templates = teamsView(db, true);
     const tmap = new Map(templates.map(t => [t.id, t]));
-    const sol = solve(templates, caps);
+    const mt = Math.floor(Number(data.max_teams));
+    const maxTeams = Number.isFinite(mt) && mt >= 1 ? mt : null;     // rỗng / không hợp lệ = không giới hạn
+    const sol = solve(templates, caps, 4000, null, maxTeams);
 
     const used = new Map();
     for (const c of sol.picked) for (const i of c.ids) used.set(i, (used.get(i) || 0) + 1);
@@ -635,7 +644,7 @@
         notes: t.notes, score: c.score, members: c.ids.slice(), slots: t.slots, pairs_active: activePairs(t, c.ids) };
     });
     return {
-      teams, score: sol.score, approx: sol.approx, usable_templates: sol.usable, owned_count: caps.size,
+      teams, score: sol.score, approx: sol.approx, usable_templates: sol.usable, owned_count: caps.size, max_teams: maxTeams,
       leftover,
       incomplete: incompleteSuggestions(leftover.map(l => l.id), new Set(caps.keys()), busy, templates),
     };
@@ -694,13 +703,12 @@
 
   route("POST", /^\/api\/pull-advisor$/, (_, data) => {
     const db = loadDb();
-    const includeUpcoming = !!data.include_upcoming;
     const res = resView(db);
     const valid = new Set(res.map(r => r.id));
     const caps = buildCaps(data.owned || [], data.duplicates || [], valid);
     const templates = teamsView(db, true);
     const tmap = new Map(templates.map(t => [t.id, t]));
-    const candidates = res.filter(r => !caps.has(r.id) && (includeUpcoming || r.released));
+    const candidates = res.filter(r => !caps.has(r.id));      // gồm cả nhân vật sắp ra mắt
 
     // dựng sẵn mọi team cụ thể 1 lần cho (đang có + ứng viên); mỗi lần mô phỏng chỉ cần lọc
     const universe = new Set([...caps.keys(), ...candidates.map(r => r.id)]);
@@ -721,14 +729,15 @@
       results.push({
         id: r.id, name: r.name, gain, new_score: after.score,
         potential: r.potential, potential_pts: potPts, pull: r2(gain + potPts),
-        unlocked: after.usable - base.usable,
+        pairable: unlocked.length > 0,                       // ghép được ít nhất 1 team với nhân vật đang có
+        unlocked: new Set(unlocked.map(c => c.tid)).size,
         best_unlocked: unlocked.reduce((m, c) => Math.max(m, c.score), 0),
         teams: newTeams.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,
           score: c.score, members: c.ids.slice() })),
       });
     }
     results.sort((a, b) => b.pull - a.pull || b.gain - a.gain || b.best_unlocked - a.best_unlocked || b.new_score - a.new_score);
-    return { base_score: base.score, owned_count: caps.size, results: results.slice(0, 12) };
+    return { base_score: base.score, owned_count: caps.size, results };
   });
 
   async function engineApi(url, method = "GET", body) {

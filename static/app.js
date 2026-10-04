@@ -7,6 +7,7 @@ let noExtra = new Set();        // Healer mà người dùng chủ động bấm
 let sortKey = "name";           // "name" | "date"
 let sortDir = "asc";
 let mode = "toa";
+let maxTeams = null;            // giới hạn số team khi xếp (null = không giới hạn)
 let hasPull = false;
 const MODE_NAME = { toa: "ToA", matrix: "Matrix" };
 const modeTag = m => `<span class="mode-tag ${m}">${MODE_NAME[m]}</span>`;
@@ -19,6 +20,8 @@ let lastD = null;               // kết quả optimize gần nhất
 let evalSeq = 0;
 let dirty = false;              // người dùng đã tự chỉnh team bằng tay -> không tự ghi đè nữa
 
+const parseMax = v => { const n = Math.floor(Number(v)); return String(v ?? "").trim() !== "" && Number.isFinite(n) && n >= 1 ? n : null; };
+
 const LS = {
   load() {
     try {
@@ -26,6 +29,7 @@ const LS = {
       extra = new Set(JSON.parse(localStorage.getItem("wuwa.extra") || "[]"));
       noExtra = new Set(JSON.parse(localStorage.getItem("wuwa.noextra") || "[]"));
       mode = localStorage.getItem("wuwa.mode") || "toa";
+      maxTeams = parseMax(localStorage.getItem("wuwa.maxTeams"));
       sortKey = localStorage.getItem("wuwa.sortKey") === "date" ? "date" : "name";
       sortDir = localStorage.getItem("wuwa.sortDir") === "desc" ? "desc" : "asc";
     } catch (e) { /* bỏ qua */ }
@@ -36,6 +40,7 @@ const LS = {
       localStorage.setItem("wuwa.extra", JSON.stringify([...extra]));
       localStorage.setItem("wuwa.noextra", JSON.stringify([...noExtra]));
       localStorage.setItem("wuwa.mode", mode);
+      localStorage.setItem("wuwa.maxTeams", maxTeams == null ? "" : String(maxTeams));
       localStorage.setItem("wuwa.sortKey", sortKey);
       localStorage.setItem("wuwa.sortDir", sortDir);
     } catch (e) { /* bỏ qua */ }
@@ -51,6 +56,7 @@ async function load() {
   extra = new Set([...extra].filter(id => selected.has(id)));
   noExtra = new Set([...noExtra].filter(id => selected.has(id)));
   applyHealerDefaults();
+  document.getElementById("maxTeams").value = maxTeams == null ? "" : maxTeams;
   buildFilters();
   syncMode();
   syncSort();
@@ -201,6 +207,7 @@ function payload() {
   return {
     owned: [...selected],
     duplicates: mode === "matrix" ? [...extra].filter(i => selected.has(i)) : [],
+    max_teams: maxTeams,
   };
 }
 
@@ -627,6 +634,11 @@ async function runOptimize(silent = false) {
             patch: t.patch, notes: t.notes, score: t.score, slots: t.slots, hints: [], pairs_active: t.pairs_active || [] },
     }));
     document.getElementById("approxWarn").classList.toggle("hidden", !d.approx);
+    const ln = document.getElementById("limitNote");
+    if (maxTeams && d.teams.length < maxTeams) {
+      ln.textContent = `Giới hạn ${maxTeams} team nhưng roster hiện tại chỉ xếp được ${d.teams.length} team — đã hiển thị tất cả.`;
+      ln.classList.remove("hidden");
+    } else ln.classList.add("hidden");
     renderLayout();
 
     document.getElementById("incomplete").innerHTML = d.incomplete.length
@@ -651,8 +663,7 @@ async function runPull(silent = false) {
   btn.disabled = true;
   btn.textContent = "Đang tính…";
   try {
-    const d = await api("/api/pull-advisor", "POST",
-      { ...payload(), include_upcoming: document.getElementById("inclUpcoming").checked });
+    const d = await api("/api/pull-advisor", "POST", payload());
     document.getElementById("pullResult").classList.remove("hidden");
     document.getElementById("result").classList.add("hidden");
     hasResult = false;
@@ -663,7 +674,7 @@ async function runPull(silent = false) {
       `Điểm hiện tại: ${d.base_score.toFixed(1)}. Điểm pull = mức tăng tổng điểm team nếu bạn có thêm nhân vật đó (S0) + điểm Potential. Xếp từ cao xuống thấp.`;
     document.getElementById("potLegend").innerHTML = potLegendHTML();
 
-    document.getElementById("pulls").innerHTML = d.results.map((x, i) => {
+    const pullCard = (x, i) => {
       const r = byId[x.id];
       const teams = x.teams.map(t => `<span class="mini">
           ${t.members.map(id => faceHTML(byId[id], { size: "sm" })).join("")}
@@ -672,7 +683,7 @@ async function runPull(silent = false) {
         ? `Điểm mới: ${x.new_score.toFixed(1)} · mở khóa ${x.unlocked} team`
         : x.unlocked > 0
           ? `Không tăng tổng điểm ngay, nhưng mở khóa ${x.unlocked} team (team tốt nhất ${x.best_unlocked.toFixed(1)})`
-          : "Chưa mở khóa team nào với roster hiện tại";
+          : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ điểm Potential";
       return `<div class="pull">
         <div class="no">${i + 1}</div>
         ${faceHTML(r, { size: "lg" })}
@@ -684,7 +695,24 @@ async function runPull(silent = false) {
         </div>
         <div class="gain ${x.pull > 0 ? "" : x.pull < 0 ? "neg" : "zero"}" title="Điểm pull">${x.pull > 0 ? "+" : x.pull < 0 ? "−" : ""}${Math.abs(x.pull).toFixed(1)}</div>
       </div>`;
-    }).join("") || '<p class="hint">Không có ứng viên nào.</p>';
+    };
+    // nhóm 1: ghép được team với nhân vật đang có; nhóm 2: "tiềm năng" = không ghép được team nào, chỉ lên nhờ điểm Potential
+    // (cả 2 nhóm đều xếp điểm pull từ cao xuống thấp — engine đã sắp sẵn)
+    const shown = d.results.filter(x => x.pull > 0);       // điểm pull <= 0 thì không hiện
+    const pairable = shown.filter(x => x.pairable);
+    const potential = shown.filter(x => !x.pairable);
+    const group = (title, hint, list, empty) => `<div class="pull-group">
+      <h3 class="sec">${title} <span class="hint">(${list.length})</span></h3>
+      <p class="hint g">${hint}</p>
+      ${list.length ? `<div class="pull-list">${list.map(pullCard).join("")}</div>` : `<p class="hint">${empty}</p>`}
+    </div>`;
+    document.getElementById("pulls").innerHTML =
+      group("Ghép được với nhân vật hiện có",
+        "Roll nhân vật này sẽ lập thêm được team với các nhân vật bạn đang có (đã gồm cả nhân vật sắp ra mắt).",
+        pairable, "Chưa có nhân vật nào ghép được team với roster hiện tại.") +
+      group("Nhân vật tiềm năng",
+        "Chưa ghép được team nào với roster hiện tại, nhưng có điểm Potential cao nên vẫn được gợi ý.",
+        potential, "Không có nhân vật tiềm năng nào (chấm Potential trong Admin → bảng Resonator).");
     if (!silent) document.getElementById("pullResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     toast(e.message, true);
@@ -723,6 +751,13 @@ document.querySelectorAll("#sortSeg button").forEach(b => b.addEventListener("cl
   LS.save();
   renderRoster();
 }));
+document.getElementById("maxTeams").addEventListener("change", e => {
+  maxTeams = parseMax(e.target.value);
+  e.target.value = maxTeams == null ? "" : maxTeams;      // 0 / chữ / số âm -> về "không giới hạn"
+  LS.save();
+  if (hasResult && !dirty) runOptimize(true);
+  else if (hasResult && dirty) toast("Đã lưu giới hạn. Bấm “Xếp team” để áp dụng (sẽ ghi đè team bạn tự chỉnh).");
+});
 document.getElementById("addTeamBtn").addEventListener("click", addTeam);
 document.getElementById("exportBtn").addEventListener("click", exportImage);
 document.getElementById("optimizeBtn").addEventListener("click", () => runOptimize(false));
