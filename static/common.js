@@ -9,11 +9,12 @@ const ROLE_LABELS = ["DPS", "Sub-DPS", "Support"];
 const ROLES = ["DPS", "supDPS", "Healer"];
 const ROLE_TAG = { DPS: "DPS", supDPS: "Sub-DPS", Healer: "Healer" };
 
-// Trạng thái banner của Resonator (màu: vàng = sắp ra, xanh lá = đang rerun, đỏ = limited)
-const STATUS_ORDER = ["available", "upcoming", "rerun", "soon", "limited", "norerun"];
+// Trạng thái banner của Resonator (màu: vàng = sắp ra, bạc = đang debut, xanh lá = đang rerun, đỏ = limited)
+const STATUS_ORDER = ["available", "upcoming", "debut", "rerun", "soon", "limited", "norerun"];
 const STATUS_META = {
   available: { label: "Đã ra mắt",       tag: "",            color: "#8d9ab8" },
-  upcoming:  { label: "Sắp ra mắt",      tag: "Debut",      color: "#f3c76b" },
+  upcoming:  { label: "Sắp ra mắt",      tag: "Sắp ra",     color: "#f3c76b" },
+  debut:     { label: "Debut",           tag: "Debut",      color: "#d5dbe8" },
   rerun:     { label: "Rerun",      tag: "Rerun",  color: "#5fd9a0" },
   soon:      { label: "Incoming",       tag: "Incoming",   color: "#ffa24d" },
   limited:   { label: "Đã limited",      tag: "LIMITED",     color: "#ff6b7a" },
@@ -25,7 +26,7 @@ function statusTag(st) {
 }
 
 // Potential: điểm cộng/trừ vào điểm pull (giá trị thật nằm ở engine.js -> POTENTIAL_POINTS)
-const POTENTIALS = ["S+", "S", "A", "B", "C", "D"];
+const POTENTIALS = ["S+", "S", "A", "B", "C", "D", "E", "F"];
 const potCls = p => "pot P" + String(p).replace("+", "p");
 const fmtSigned = n => (n > 0 ? "+" : n < 0 ? "−" : "") + Math.abs(n);
 function potBadge(p) {

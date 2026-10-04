@@ -2,9 +2,9 @@ let chars = [];
 let byId = {};
 let teams = [];
 let slots = [[], [], []];
-let slotTiers = [[], [], []];   // bậc S/A/B/C của từng nhân vật trong slot (song song với slots)
-let pairs = [];                 // cặp chuẩn [[idA, idB], ...] (0 = chưa chọn): ghép đúng cặp -> cả hai được nâng 1 bậc
-const TIER_LIST = ["S", "A", "B", "C"];
+let slotTiers = [[], [], []];   // bậc S→F của từng nhân vật trong slot (song song với slots)
+let pairs = [];                 // cặp chuẩn [[idA, idB, idC], ...] (0 = ô trống, tối đa 1 ô trống): đủ bộ -> mỗi người được nâng 1 bậc
+const TIER_LIST = ["S", "A", "B", "C", "D", "E", "F"];
 const tierRank = v => Math.max(TIER_LIST.indexOf(v), 0);
 // giữ danh sách trong slot luôn xếp từ bậc cao xuống thấp (ổn định: cùng bậc giữ nguyên thứ tự thêm)
 function sortSlot(si) {
@@ -83,34 +83,47 @@ function wireSlotSearch(inp) {
   inp.addEventListener("blur", () => setTimeout(() => list.classList.add("hidden"), 120));
 }
 
-// ------------------------------------------------------------ cặp chuẩn
+// ------------------------------------------------------------ cặp chuẩn (3 ô, được để trống 1 ô)
 const inSlots = id => slots.some(s => s.includes(id));
-const slotOf = id => slots.map((s, i) => s.includes(id) ? i : -1).filter(i => i >= 0);
-// 2 nhân vật đứng chung đội hình được khi có 2 slot KHÁC NHAU chứa họ
-const canPair = (a, b) => a && b && a !== b && slotOf(a).some(i => slotOf(b).some(j => i !== j));
+// các nhân vật đứng chung đội hình được khi xếp được mỗi người vào 1 slot KHÁC NHAU
+function canSeat(ids, k = 0, used = new Set()) {
+  if (k === ids.length) return true;
+  for (let i = 0; i < slots.length; i++) {
+    if (used.has(i) || !slots[i].includes(ids[k])) continue;
+    used.add(i);
+    const ok = canSeat(ids, k + 1, used);
+    used.delete(i);
+    if (ok) return true;
+  }
+  return false;
+}
+const pairIds = p => p.filter(Boolean);
+const pairOk = p => { const ids = pairIds(p); return ids.length >= 2 && new Set(ids).size === ids.length && canSeat(ids); };
 function prunePairs() {
-  pairs = pairs.filter(([a, b]) => (!a || inSlots(a)) && (!b || inSlots(b)));
+  pairs = pairs.map(p => p.map(id => (id && inSlots(id) ? id : 0)));   // nhân vật bị xóa khỏi team -> ô đó thành trống
 }
 function pairBadge(id) {
-  const partners = pairs.filter(p => p.includes(id) && canPair(p[0], p[1])).map(p => byId[p[0] === id ? p[1] : p[0]]?.name).filter(Boolean);
-  return partners.length ? ` <span class="pair-badge" title="Đi cùng ${esc(partners.join(", "))} thì được nâng 1 bậc">🔗 ${esc(partners.join(", "))}</span>` : "";
+  const partners = pairs.filter(p => p.includes(id) && pairOk(p))
+    .map(p => pairIds(p).filter(x => x !== id).map(x => byId[x]?.name).filter(Boolean).join(" + ")).filter(Boolean);
+  return partners.length ? ` <span class="pair-badge" title="Đi cùng ${esc(partners.join(" / "))} thì được nâng 1 bậc">🔗 ${esc(partners.join(" / "))}</span>` : "";
 }
 function renderPairs() {
   const box = document.getElementById("pairsBox");
   const teamIds = [...new Set(slots.flat())];
-  const opt = (sel, filterFn) => `<option value="">— chọn nhân vật —</option>` +
-    teamIds.filter(filterFn).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(byId[id]?.name || "?")} (slot ${slotOf(id).map(i => i + 1).join("/")})</option>`).join("");
+  const opt = (sel, others) => `<option value="">— trống —</option>` +
+    teamIds.filter(id => id === sel || !others.includes(id)).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(byId[id]?.name || "?")} (slot ${slots.map((s, i) => s.includes(id) ? i + 1 : 0).filter(Boolean).join("/")})</option>`).join("");
   box.innerHTML = `
     <div class="pairs-head"><b>🔗 Cặp chuẩn</b>
-      <span class="hint">Hai nhân vật đúng cặp cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên.</span></div>
-    ${pairs.length ? pairs.map(([a, b], i) => {
-      const bad = a && b && !canPair(a, b);
-      return `<div class="pair-row ${bad ? "bad" : ""}">
-        <select data-pair="${i}" data-side="0">${opt(a, id => id !== b)}</select>
-        <span class="pair-link">🔗</span>
-        <select data-pair="${i}" data-side="1">${opt(b, id => id !== a && (!a || canPair(a, id)))}</select>
+      <span class="hint">Mỗi cặp có <b>3 ô</b>, được để trống 1 ô (tối thiểu 2 nhân vật). Khi <b>tất cả nhân vật trong cặp</b> cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên.</span></div>
+    ${pairs.length ? pairs.map((p, i) => {
+      const n = pairIds(p).length;
+      const bad = n >= 2 && !pairOk(p);
+      const few = n < 2;
+      return `<div class="pair-row ${bad || few ? "bad" : ""}">
+        ${[0, 1, 2].map(k => `${k ? '<span class="pair-link">🔗</span>' : ""}<select data-pair="${i}" data-side="${k}">${opt(p[k], p.filter((_, j) => j !== k))}</select>`).join("")}
         <button type="button" class="danger" data-pair-del="${i}">✕</button>
-        ${bad ? '<span class="hint">2 người này nằm cùng slot nên không đứng chung đội hình được</span>' : ""}
+        ${bad ? '<span class="hint">Các nhân vật này không xếp được vào các slot khác nhau nên không đứng chung đội hình được</span>'
+          : few ? '<span class="hint">Cần chọn ít nhất 2 nhân vật (cặp thiếu sẽ không được lưu)</span>' : ""}
       </div>`;
     }).join("") : '<div class="hint">Chưa có cặp nào.</div>'}
     <button type="button" class="small ghost" id="addPair" ${teamIds.length < 2 ? "disabled" : ""}>＋ Thêm cặp</button>`;
@@ -122,7 +135,7 @@ function renderPairs() {
     pairs.splice(+b.dataset.pairDel, 1);
     renderSlots();
   }));
-  box.querySelector("#addPair").addEventListener("click", () => { pairs.push([0, 0]); renderSlots(); });
+  box.querySelector("#addPair").addEventListener("click", () => { pairs.push([0, 0, 0]); renderSlots(); });
 }
 
 function renderSlots() {
@@ -135,7 +148,7 @@ function renderSlots() {
           <div class="slot-chip">
             ${faceHTML(byId[id], { size: "sm" })}
             <span class="grow">${esc(byId[id]?.name || "?")}${pairBadge(id)}</span>
-            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 1 điểm)">
+            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 0.5 điểm)">
               ${TIER_LIST.map(t => `<option value="${t}" ${t === (slotTiers[si][k] || "S") ? "selected" : ""}>${t}</option>`).join("")}
             </select>
             <button type="button" class="danger" data-act="del" data-s="${si}" data-k="${k}">✕</button>
@@ -168,19 +181,6 @@ function renderSlots() {
 }
 
 // ------------------------------------------------------------ team form
-function fillTierSelects() {
-  const opts = Object.keys(TIER_SCORE).map(t => `<option value="${t}">${t}</option>`).join("");
-  document.getElementById("tier").insertAdjacentHTML("beforeend", opts);
-  document.getElementById("tierFilter").insertAdjacentHTML("beforeend", opts);
-}
-
-document.getElementById("tier").addEventListener("change", e => {
-  const t = e.target.value;
-  const scoreEl = document.getElementById("score");
-  if (t && TIER_SCORE[t] !== undefined && (!scoreEl.value || !scoreTouched)) {
-    scoreEl.value = TIER_SCORE[t];
-  }
-});
 document.getElementById("score").addEventListener("input", () => { scoreTouched = true; });
 
 function resetForm() {
@@ -202,10 +202,8 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
     name: document.getElementById("teamName").value,
     slots,
     tiers: slotTiers,
-    pairs: pairs.filter(([a, b]) => canPair(a, b)),
+    pairs: pairs.filter(pairOk).map(pairIds),
     score: document.getElementById("score").value,
-    tier: document.getElementById("tier").value,
-    patch: document.getElementById("patch").value,
     team_type: document.getElementById("teamType").value,
     notes: document.getElementById("notes").value,
   };
@@ -227,11 +225,9 @@ function editTeam(id) {
   slots = t.slots.map(s => [...s]);
   // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
   slotTiers = t.slots.map((s, si) => s.map((_, k) => (t.tiers && t.tiers[si] && t.tiers[si][k]) || TIER_LIST[Math.min(k, 3)]));
-  pairs = (t.pairs || []).map(p => [...p]);
+  pairs = (t.pairs || []).map(p => [p[0] || 0, p[1] || 0, p[2] || 0]);
   document.getElementById("teamName").value = t.name || "";
   document.getElementById("score").value = t.score;
-  document.getElementById("tier").value = t.tier || "";
-  document.getElementById("patch").value = t.patch || "";
   document.getElementById("teamType").value = t.team_type || "";
   document.getElementById("notes").value = t.notes || "";
   document.getElementById("formTitle").textContent = `Sửa team: ${t.name || "#" + t.id}`;
@@ -256,9 +252,7 @@ async function toggleActive(id, on) {
 // ------------------------------------------------------------ team table
 function renderTeams() {
   const q = document.getElementById("teamSearch").value.trim().toLowerCase();
-  const tf = document.getElementById("tierFilter").value;
   const list = teams.filter(t => {
-    if (tf && t.tier !== tf) return false;
     if (!q) return true;
     const names = t.slots.flat().map(i => byId[i]?.name || "").join(" ").toLowerCase();
     return (t.name || "").toLowerCase().includes(q) || names.includes(q);
@@ -266,7 +260,7 @@ function renderTeams() {
   document.getElementById("teamCount").textContent = `(${list.length}/${teams.length})`;
   document.getElementById("teamTable").innerHTML = `
     <table>
-      <thead><tr><th>Dùng</th><th>Team</th><th>Thành phần (slot 1 · 2 · 3)</th><th>Điểm</th><th>Tier</th><th>Patch</th><th></th></tr></thead>
+      <thead><tr><th>Dùng</th><th>Team</th><th>Thành phần (slot 1 · 2 · 3)</th><th>Điểm</th><th></th></tr></thead>
       <tbody>
       ${list.map(t => `<tr class="${t.active ? "" : "off"}">
         <td><input type="checkbox" ${t.active ? "checked" : ""} data-act="${t.id}"></td>
@@ -275,8 +269,6 @@ function renderTeams() {
         <td><div class="mini-faces">${t.slots.map(s =>
             `<span class="mini-slot">${s.map(i => faceHTML(byId[i], { size: "sm" })).join("")}</span>`).join("")}</div></td>
         <td><b>${Number(t.score).toFixed(1)}</b></td>
-        <td>${tierBadge(t.tier) || "—"}</td>
-        <td>${esc(t.patch || "—")}</td>
         <td><div class="row-actions">
           <button class="small" data-edit="${t.id}">Sửa</button>
           <button class="small danger" data-del="${t.id}">Xóa</button></div></td>
@@ -289,7 +281,6 @@ function renderTeams() {
   tb.querySelectorAll("[data-act]").forEach(b => b.addEventListener("change", () => toggleActive(Number(b.dataset.act), b.checked)));
 }
 document.getElementById("teamSearch").addEventListener("input", renderTeams);
-document.getElementById("tierFilter").addEventListener("change", renderTeams);
 
 // ------------------------------------------------------------ backup / reseed
 document.getElementById("exportBtn").addEventListener("click", async () => {
@@ -408,5 +399,4 @@ document.getElementById("resStatus").innerHTML = STATUS_ORDER.map(k => `<option 
 document.getElementById("resPotential").innerHTML = '<option value="">Potential: chưa chấm (0)</option>' +
   POTENTIALS.map(p => `<option value="${p}">Potential ${p} (${fmtSigned(POTENTIAL_POINTS[p])})</option>`).join("");
 document.getElementById("potLegend").innerHTML = potLegendHTML();
-fillTierSelects();
 load();

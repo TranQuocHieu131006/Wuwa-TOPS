@@ -4,48 +4,63 @@
 (function (root) {
   "use strict";
 
-  const RANK_PENALTY = 1;   // mỗi bậc tier hạ xuống (S→A→B→C) bị trừ 1 điểm; cùng bậc thì không trừ
-  const SLOT_TIERS = ["S", "A", "B", "C"];
+  const RANK_PENALTY = 0.5; // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 0.5 điểm; cùng bậc thì không trừ
+  const SLOT_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
+  const LEGACY_MAX = 3;     // dữ liệu cũ chưa có "tiers": suy ra từ vị trí, tối đa tới C (như trước đây)
   const tierIdx = v => { const i = SLOT_TIERS.indexOf(String(v || "").toUpperCase()); return i < 0 ? 0 : i; };
   // Bậc của từng nhân vật trong slot. Dữ liệu cũ chưa có "tiers" thì suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C)
   // để điểm các team cũ giữ nguyên.
   function slotTierIdx(t, si, k) {
     const tt = t.tiers && t.tiers[si];
     if (tt && tt[k] !== undefined) return tierIdx(tt[k]);
-    return Math.min(k, SLOT_TIERS.length - 1);
+    return Math.min(k, LEGACY_MAX);
   }
   // Chuẩn hóa tiers theo slots (đủ độ dài, giá trị hợp lệ)
   function normTiers(slots, tiers) {
     return slots.map((s, si) => s.map((_, k) => {
       const v = tiers && tiers[si] && tiers[si][k];
-      return SLOT_TIERS.includes(String(v || "").toUpperCase()) ? String(v).toUpperCase() : SLOT_TIERS[Math.min(k, SLOT_TIERS.length - 1)];
+      return SLOT_TIERS.includes(String(v || "").toUpperCase()) ? String(v).toUpperCase() : SLOT_TIERS[Math.min(k, LEGACY_MAX)];
     }));
   }
-  // ---- Cặp chuẩn (pairs): team có thể khai báo các cặp nhân vật ăn ý với nhau, dạng [idA, idB].
-  // Khi CẢ HAI cùng có mặt trong đội hình thì mỗi người được nâng 1 bậc (A→S, B→A...; S vẫn là S).
-  // Đứng riêng (thiếu người còn lại) thì giữ nguyên bậc đã chấm trong slot.
+  // ---- Cặp chuẩn (pairs): team có thể khai báo các bộ 2–3 nhân vật ăn ý với nhau, dạng [idA, idB, idC?]
+  // (3 ô, được để trống 1 ô). Khi TẤT CẢ nhân vật của bộ cùng có mặt trong đội hình thì mỗi người được nâng 1 bậc
+  // (A→S, B→A...; S vẫn là S). Đứng riêng (thiếu người) thì giữ nguyên bậc đã chấm trong slot.
+  // các nhân vật phải xếp được vào các slot KHÁC NHAU thì mới đứng chung đội hình được
+  function canSeat(ids, slots) {
+    const rec = (k, used) => {
+      if (k === ids.length) return true;
+      for (let i = 0; i < slots.length; i++) if (!used.has(i) && slots[i].includes(ids[k])) {
+        used.add(i);
+        const ok = rec(k + 1, used);
+        used.delete(i);
+        if (ok) return true;
+      }
+      return false;
+    };
+    return rec(0, new Set());
+  }
   function normPairs(slots, pairs) {
     const out = [], seen = new Set();
     for (const p of pairs || []) {
-      const a = parseInt(p && p[0], 10), b = parseInt(p && p[1], 10);
-      if (!Number.isInteger(a) || !Number.isInteger(b) || a === b) continue;
-      let ok = false;   // 2 người phải nằm được ở 2 slot khác nhau thì mới đứng chung đội hình được
-      for (let i = 0; i < slots.length; i++) for (let j = 0; j < slots.length; j++)
-        if (i !== j && slots[i].includes(a) && slots[j].includes(b)) ok = true;
-      if (!ok) continue;
-      const key = a < b ? a + "," + b : b + "," + a;
+      const ids = [];
+      for (const x of Array.isArray(p) ? p : []) {
+        const n = parseInt(x, 10);
+        if (Number.isInteger(n) && n > 0 && !ids.includes(n)) ids.push(n);   // ô trống (0/null) bị bỏ
+      }
+      if (ids.length < 2 || ids.length > 3 || !canSeat(ids, slots)) continue;
+      const key = ids.slice().sort((x, y) => x - y).join(",");
       if (seen.has(key)) continue;
-      seen.add(key); out.push([a, b]);
+      seen.add(key); out.push(ids);
     }
     return out;
   }
-  // các cặp đang "khớp" (đủ cả 2 người) trong đội hình ids
+  // các bộ đang "khớp" (đủ mọi người) trong đội hình ids
   function activePairs(t, ids) {
-    return (t.pairs || []).filter(([a, b]) => ids.includes(a) && ids.includes(b));
+    return (t.pairs || []).filter(p => p.every(x => ids.includes(x)));
   }
   function boostedIds(t, ids) {
     const out = new Set();
-    for (const [a, b] of activePairs(t, ids)) { out.add(a); out.add(b); }
+    for (const p of activePairs(t, ids)) p.forEach(x => out.add(x));
     return out;
   }
   const effIdx = (idx, boosted) => boosted ? Math.max(idx - 1, 0) : idx;
@@ -401,11 +416,11 @@
   const normRole = v => ROLES.includes(v) ? v : "DPS";
   const normDate = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
   // Trạng thái banner: available = đã ra mắt (đang có), upcoming = sắp ra mắt, rerun = đang rerun,
-  // soon = sắp rerun, limited = đã limited (đang ngoài banner), norerun = không rerun nữa
-  const STATUSES = ["available", "upcoming", "rerun", "soon", "limited", "norerun"];
+  // debut = đang debut (banner ra mắt), soon = sắp rerun, limited = đã limited (đang ngoài banner), norerun = không rerun nữa
+  const STATUSES = ["available", "upcoming", "debut", "rerun", "soon", "limited", "norerun"];
   const normStatus = v => STATUSES.includes(v) ? v : "available";
   // Potential -> điểm cộng/trừ vào điểm pull (người dùng tự chấm trong Admin). "" = chưa chấm = 0
-  root.POTENTIAL_POINTS = { "S+": 10, "S": 5, "A": 1, "B": -1, "C": -5, "D": -10 };
+  root.POTENTIAL_POINTS = { "S+": 5, "S": 2, "A": 0, "B": -1, "C": -2, "D": -3, "E": -5, "F": -10 };
   const normPotential = v => (v in root.POTENTIAL_POINTS) ? v : "";
   // dữ liệu cũ trong trình duyệt chưa có role/date/status/potential -> lấy từ data.js gốc theo slug
   let _seedMeta = null;
@@ -464,7 +479,7 @@
     const pairs = normPairs(slots, data.pairs);
     if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), pairs, score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, tier: s("tier"), patch: s("patch"), team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -583,7 +598,7 @@
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
         tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
-        pairs: (t.pairs || []).filter(pr => res[pr[0]] && res[pr[1]]).map(pr => [res[pr[0]].name, res[pr[1]].name]),
+        pairs: (t.pairs || []).filter(pr => pr.every(i => res[i])).map(pr => pr.map(i => res[i].name)),
       })),
     };
   }
@@ -755,14 +770,13 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "tier", "patch", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
       .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : t[k]])
         .filter(([k, v]) => !(k === "pairs" && !v.length)))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
-      "window.TIER_SCORE = " + line(root.TIER_SCORE) + ";\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";
   }
 

@@ -146,24 +146,37 @@ select option { background: var(--panel); }
 .char.selected .face { filter: none; }
 .char .nm { font-size: 12.5px; font-weight: 700; text-align: center; line-height: 1.2; min-height: 30px;
   display: flex; align-items: center; justify-content: center; }
-.char .meta { font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-.char .meta .star5 { color: var(--gold); } .char .meta .star4 { color: var(--purple); }
 /* hàng tag trạng thái nằm phía TRÊN hình (không còn bị hình đè lên chữ) */
 .char { padding-top: 8px; }
-.char .tagrow { width: 100%; min-height: 16px; display: flex; align-items: center; justify-content: flex-start; padding-right: 20px; margin-bottom: -2px; }
-.char .tick {
-  position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%;
-  background: var(--el, var(--accent)); color: #0b0f1b; font-size: 12px; font-weight: 900;
-  display: none; place-items: center;
+.char .tagrow { width: 100%; min-height: 16px; display: flex; align-items: center; justify-content: center; margin-bottom: -2px; }
+.char .tagrow { padding-right: 0; justify-content: center; }
+.char .nm { gap: 5px; min-height: 32px; }
+.char .nm .nm-t { min-width: 0; word-break: break-word; }
+
+/* ---------- Matrix: nền trang giữ nguyên, các panel ngả đỏ nhẹ (10% #3E0D0D pha vào màu xanh của ToA) ---------- */
+body.mode-matrix .panel {
+  --panel: color-mix(in srgb, #3E0D0D 27%, #171f35);
+  --bg2: color-mix(in srgb, #3E0D0D 27%, #131a2c);
+  --panel2: color-mix(in srgb, #3E0D0D 27%, #1d2742);
+  --line: color-mix(in srgb, #3E0D0D 27%, #2a3556);
 }
-.char.selected .tick { display: grid; }
-.copies {
-  display: none; align-items: center; gap: 4px; margin-top: 2px;
+body.mode-matrix .mode-tag.matrix { color: #ffb0bb; background: rgba(255,107,129,.14); border-color: rgba(255,107,129,.5); }
+
+/* ---------- nút nổi YouTube / Discord (góc dưới bên phải) ---------- */
+.float-nav { position: fixed; right: 16px; bottom: 16px; z-index: 30; display: flex; flex-direction: column; gap: 10px; }
+.float-nav .fn {
+  display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%;
+  background: var(--panel); border: 1px solid var(--line); box-shadow: 0 6px 18px rgba(0,0,0,.4);
+  transition: .15s; text-decoration: none;
 }
-.char.selected.matrix .copies { display: flex; }
-.copies .badge { font-size: 12px; font-weight: 800; color: var(--accent2); min-width: 22px; text-align: center; }
-.copies button { padding: 0; width: 24px; height: 24px; border-radius: 50%; font-weight: 900; line-height: 1; }
-.copies button.plus { background: var(--accent); border-color: var(--accent); color: #fff; }
+.float-nav .fn svg { width: 28px; height: 28px; }
+.float-nav .fn.yt svg { color: #ff1f3d; } .float-nav .fn.dc svg { color: #5865f2; }
+.float-nav .fn:hover { transform: translateY(-2px) scale(1.06); }
+.float-nav .fn.yt:hover { border-color: #ff1f3d; box-shadow: 0 0 14px rgba(255,31,61,.4); }
+.float-nav .fn.dc:hover { border-color: #5865f2; box-shadow: 0 0 14px rgba(88,101,242,.5); }
+.actions.wide { max-width: 1200px; margin: 0 auto 14px; }
+@media (max-width: 1380px) { .actions.wide { margin-left: 14px; margin-right: 80px; } }
+.toast { right: auto; left: 50%; transform: translateX(-50%); }
 
 /* ---------- action bar ---------- */
 .actions {
@@ -178,7 +191,7 @@ select option { background: var(--panel); }
 label.inline { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); cursor: pointer; }
 label.inline input { width: 16px; height: 16px; padding: 0; }
 label.inline.limit { color: var(--text); font-weight: 600; }
-label.inline.limit input { width: 130px; height: auto; padding: 9px 10px; }
+label.inline.limit input { width: 160px; height: auto; padding: 9px 10px; }
 
 /* ---------- results ---------- */
 .summary { display: flex; gap: 12px; flex-wrap: wrap; margin: 12px 0 4px; }
@@ -333,11 +346,12 @@ body.locked .admin-grid, body.locked #localBanner { display: none; }
 .st-tag { display: inline-block; font-size: 9.5px; font-weight: 800; line-height: 15px; padding: 0 6px; border-radius: 6px;
   white-space: nowrap; border: 1px solid transparent; letter-spacing: .2px; }
 .st-upcoming { background: #3a2f12; color: #f3c76b; border-color: #5a4a2c; }      /* vàng */
+.st-debut    { background: #2a2f3a; color: #e3e8f2; border-color: #aab3c7; }      /* trắng bạc */
 .st-rerun    { background: #12362a; color: #5fd9a0; border-color: #2a6b52; }      /* xanh lá */
 .st-soon     { background: #3b2812; color: #ffa24d; border-color: #6b4a22; }      /* cam */
 .st-limited  { background: #3d1d24; color: #ff6b7a; border-color: #8a3040; }      /* đỏ */
 .st-norerun  { background: #4a1620; color: #ff8a98; border-color: #a02a3c; }      /* đỏ đậm */
-select.st-sel.st-upcoming { color: #f3c76b; } select.st-sel.st-rerun { color: #5fd9a0; }
+select.st-sel.st-upcoming { color: #f3c76b; } select.st-sel.st-debut { color: #d5dbe8; } select.st-sel.st-rerun { color: #5fd9a0; }
 select.st-sel.st-soon { color: #ffa24d; } select.st-sel.st-limited { color: #ff6b7a; } select.st-sel.st-norerun { color: #ff8a98; }
 
 /* ---------- Potential ---------- */
@@ -348,7 +362,9 @@ select.st-sel.st-soon { color: #ffa24d; } select.st-sel.st-limited { color: #ff6
 .pot.PA { color: #6fe3b0; border-color: #28584a; background: #12362a; }
 .pot.PB { color: #8fc2ff; border-color: #2c4a73; background: #14263d; }
 .pot.PC { color: #b3b9cc; border-color: #444b63; background: #20263a; }
-.pot.PD { color: #ff8a98; border-color: #8a3040; background: #3d1d24; }
+.pot.PD { color: #e8b4a0; border-color: #6b4a3c; background: #33241f; }
+.pot.PE { color: #ff8a98; border-color: #8a3040; background: #3d1d24; }
+.pot.PF { color: #ff5a6e; border-color: #a02a3c; background: #4a1620; }
 select.pot { padding: 4px 8px; font-size: 13px; }
 .pot-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px;
   background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 12px 0; }
@@ -370,32 +386,15 @@ select.pot { padding: 4px 8px; font-size: 13px; }
 span.pot.Pp::before { content: "◆"; margin-right: 4px; font-size: .8em; color: #5cb8e6; }
 select.pot.Pp option { color: var(--text); background: var(--panel); }
 
-/* ---------- Footer: Follow Us / Contact Us ---------- */
-.site-footer {
-  display: flex; justify-content: center; align-items: flex-start; gap: 56px; flex-wrap: wrap;
-  margin: 28px 0 0; padding: 26px 20px 34px;
-  border-top: 1px solid var(--line); background: rgba(13,18,32,.75);
-}
-.foot-col { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-.foot-title { font-size: 13px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); }
-.foot-link {
-  display: inline-flex; align-items: center; gap: 12px; text-decoration: none; color: var(--text);
-  font-size: 18px; font-weight: 700; padding: 10px 22px 10px 16px;
-  border: 1px solid var(--line); border-radius: 14px; background: var(--panel);
-  transition: .15s;
-}
-.foot-link svg { width: 40px; height: 40px; flex: none; }
-.foot-link.yt svg { color: #ff1f3d; }
-.foot-link.dc svg { color: #5865f2; }
-.foot-link.yt:hover { border-color: #ff1f3d; box-shadow: 0 0 14px rgba(255,31,61,.35); transform: translateY(-2px); }
-.foot-link.dc:hover { border-color: #5865f2; box-shadow: 0 0 14px rgba(88,101,242,.45); transform: translateY(-2px); }
-
-/* ---------- Bậc S/A/B/C của nhân vật trong slot (Admin) ---------- */
+/* ---------- Bậc S→F của nhân vật trong slot (Admin) ---------- */
 .chip-tier { width: 56px; padding: 4px 6px; font-weight: 800; border-radius: 8px; text-align: center; }
 .chip-tier.t-S { color: #ffd86b; border-color: #ffd86b; }
 .chip-tier.t-A { color: #7ee0d0; border-color: #7ee0d0; }
 .chip-tier.t-B { color: #7fa6ff; border-color: #7fa6ff; }
 .chip-tier.t-C { color: #aab3cc; border-color: #aab3cc; }
+.chip-tier.t-D { color: #e8b4a0; border-color: #e8b4a0; }
+.chip-tier.t-E { color: #ff8a98; border-color: #ff8a98; }
+.chip-tier.t-F { color: #ff5a6e; border-color: #ff5a6e; }
 
 /* ---------- kéo thả team ---------- */
 .dnd-hint { margin: -4px 0 10px; }
@@ -435,12 +434,12 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .add-team-row button.export { border: 2px solid var(--accent); color: #fff; background: rgba(91,140,255,.18); }
 .add-team-row button.export:hover { background: rgba(91,140,255,.32); }
 
-/* khung xem trước dự phòng khi xuất ảnh */
+/* khung preview team */
 .exp-overlay { position: fixed; inset: 0; z-index: 10000; background: rgba(5,8,16,.85); overflow: auto; padding: 20px; display: flex; justify-content: center; align-items: flex-start; }
 .exp-box { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; max-width: 100%; }
-.exp-note { display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: 13px; margin-bottom: 12px; max-width: 560px; }
+.exp-note { display: flex; gap: 12px; align-items: center; justify-content: space-between; font-size: 15px; margin-bottom: 12px; }
 .exp-shot { background: #0d1220; padding: 18px; display: inline-block; }
-.exp-grid { display: grid; grid-template-columns: repeat(2, auto); gap: 18px 28px; }
+.exp-grid { display: grid; grid-template-columns: 1fr; gap: 18px; justify-items: start; }
 .exp-team { display: flex; gap: 8px; }
 .exp-blank { width: 72px; height: 72px; }
 
@@ -448,7 +447,7 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .pairs-box { background: var(--panel2); border: 1px dashed var(--line); border-radius: 14px; padding: 12px; margin: 12px 0; display: flex; flex-direction: column; gap: 8px; }
 .pairs-head { display: flex; flex-direction: column; gap: 2px; }
 .pair-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.pair-row select { min-width: 190px; }
+.pair-row select { min-width: 170px; flex: 1 1 170px; max-width: 240px; }
 .pair-row.bad select { border-color: var(--danger); }
 .pair-row button { padding: 2px 8px; font-size: 12px; border-radius: 7px; }
 .pair-link { font-size: 16px; }
@@ -460,3 +459,4 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .pull-group + .pull-group { margin-top: 22px; }
 .pull-group h3.sec { margin: 6px 0 4px; }
 .pull-group .hint.g { margin: 0 0 10px; }
+

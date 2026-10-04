@@ -2,8 +2,7 @@
 let resonators = [];
 let byId = {};
 let selected = new Set();
-let extra = new Set();          // nhân vật được +1 lần dùng (Matrix)
-let noExtra = new Set();        // Healer mà người dùng chủ động bấm − (không tự ×2 nữa)
+let extra = new Set();          // nhân vật được +1 lần dùng (Matrix): chính là các Healer đã chọn
 let sortKey = "name";           // "name" | "date"
 let sortDir = "asc";
 let mode = "toa";
@@ -27,7 +26,6 @@ const LS = {
     try {
       selected = new Set(JSON.parse(localStorage.getItem("wuwa.owned") || "[]"));
       extra = new Set(JSON.parse(localStorage.getItem("wuwa.extra") || "[]"));
-      noExtra = new Set(JSON.parse(localStorage.getItem("wuwa.noextra") || "[]"));
       mode = localStorage.getItem("wuwa.mode") || "toa";
       maxTeams = parseMax(localStorage.getItem("wuwa.maxTeams"));
       sortKey = localStorage.getItem("wuwa.sortKey") === "date" ? "date" : "name";
@@ -38,7 +36,6 @@ const LS = {
     try {
       localStorage.setItem("wuwa.owned", JSON.stringify([...selected]));
       localStorage.setItem("wuwa.extra", JSON.stringify([...extra]));
-      localStorage.setItem("wuwa.noextra", JSON.stringify([...noExtra]));
       localStorage.setItem("wuwa.mode", mode);
       localStorage.setItem("wuwa.maxTeams", maxTeams == null ? "" : String(maxTeams));
       localStorage.setItem("wuwa.sortKey", sortKey);
@@ -54,7 +51,6 @@ async function load() {
   byId = Object.fromEntries(resonators.map(r => [r.id, r]));
   selected = new Set([...selected].filter(id => byId[id]));
   extra = new Set([...extra].filter(id => selected.has(id)));
-  noExtra = new Set([...noExtra].filter(id => selected.has(id)));
   applyHealerDefaults();
   document.getElementById("maxTeams").value = maxTeams == null ? "" : maxTeams;
   buildFilters();
@@ -66,14 +62,6 @@ async function load() {
 }
 
 function buildFilters() {
-  const elBox = document.getElementById("elChips");
-  elBox.innerHTML = ELEMENTS.map(e =>
-    `<span class="chip" data-el="${e}" style="--c:${EL_COLOR[e]}"><i class="dot"></i>${e}</span>`).join("");
-  elBox.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
-    filterEl = filterEl === ch.dataset.el ? null : ch.dataset.el;
-    elBox.querySelectorAll(".chip").forEach(c => c.classList.toggle("active", c.dataset.el === filterEl));
-    renderRoster();
-  }));
 
   const rBox = document.getElementById("rarChips");
   rBox.innerHTML = ["5★", "4★"].map(r => `<span class="chip" data-r="${r}">${r}</span>`).join("");
@@ -98,7 +86,8 @@ function syncMode() {
     b.classList.toggle("active", b.dataset.mode === mode));
   document.getElementById("modeHint").textContent = mode === "toa"
     ? "ToA: mỗi Resonator chỉ được dùng 1 lần. Click vào nhân vật để chọn / bỏ chọn."
-    : "Matrix: nhân vật đã chọn có nút + để thêm 1 lần dùng (tối đa ×2). Healer mặc định ×2 (bấm − để bỏ).";
+    : "Matrix: Healer đã chọn tự được dùng ×2 (theo vai trò trong Admin). Click vào nhân vật để chọn / bỏ chọn.";
+  document.body.classList.toggle("mode-matrix", mode === "matrix");
   // nút bấm luôn ghi rõ đang tính cho chế độ nào
   const mn = MODE_NAME[mode];
   const ob = document.getElementById("optimizeBtn"), pb = document.getElementById("pullBtn");
@@ -112,13 +101,13 @@ const isHealer = id => !!byId[id] && byId[id].role === "Healer";
 const isRover = id => /^Rover\b/.test(byId[id]?.name || "");
 function pickOneRover(id) {
   resonators.forEach(r => {
-    if (r.id !== id && isRover(r.id)) { selected.delete(r.id); extra.delete(r.id); noExtra.delete(r.id); }
+    if (r.id !== id && isRover(r.id)) { selected.delete(r.id); extra.delete(r.id); }
   });
 }
-// Matrix: Healer đã chọn mặc định có 2 lượt dùng (trừ khi người dùng chủ động bấm −)
+// Matrix: Healer đã chọn luôn có 2 lượt dùng (vai trò Healer chỉnh trong Admin → bảng Resonator)
 function applyHealerDefaults() {
-  if (mode !== "matrix") return;
-  selected.forEach(id => { if (isHealer(id) && !noExtra.has(id)) extra.add(id); });
+  extra = new Set();
+  if (mode === "matrix") selected.forEach(id => { if (isHealer(id)) extra.add(id); });
 }
 
 const fmtDate = d => (d ? d.split("-").reverse().join("/") : "");
@@ -162,45 +151,27 @@ function renderRoster() {
   const list = visibleList();
   box.innerHTML = list.map(r => {
     const sel = selected.has(r.id);
-    const two = extra.has(r.id);
     return `
-    <div class="char el-${r.element} ${sel ? "selected" : ""} ${mode === "matrix" ? "matrix" : ""}" data-id="${r.id}"
-         title="${esc(r.name)}${r.date ? " · ra mắt " + fmtDate(r.date) : ""}${r.status !== "available" ? " · " + STATUS_META[r.status].label : ""}">
-      <span class="tick">✓</span>
+    <div class="char el-${r.element} ${sel ? "selected" : ""}" data-id="${r.id}"
+         title="${esc(r.name)} · ${esc(r.element)}${r.date ? " · ra mắt " + fmtDate(r.date) : ""}${r.status !== "available" ? " · " + STATUS_META[r.status].label : ""}">
       <div class="tagrow">${statusTag(r.status)}</div>
       ${faceHTML(r, { size: "lg" })}
-      <div class="nm">${esc(r.name)}</div>
-      <div class="meta"><span class="${r.rarity === "5★" ? "star5" : "star4"}">${r.rarity}</span>
-        <span style="color:${EL_COLOR[r.element] || "#888"}">${esc(r.element)}</span></div>
-      <div class="role-row"><span class="role-tag ${esc(r.role)}">${esc(ROLE_TAG[r.role] || r.role)}</span></div>
-      <div class="copies">
-        ${two ? '<button class="minus" title="Bỏ lần dùng thứ 2">−</button>' : ""}
-        <span class="badge">×${two ? 2 : 1}</span>
-        ${two ? "" : '<button class="plus" title="Thêm 1 lần dùng">+</button>'}
-      </div>
+      <div class="nm"><span class="nm-t">${esc(r.name)}</span></div>
     </div>`;
   }).join("") || '<p class="hint">Không có nhân vật nào khớp bộ lọc.</p>';
 
   box.querySelectorAll(".char").forEach(card => {
     const id = Number(card.dataset.id);
-    card.addEventListener("click", e => {
-      if (e.target.closest(".plus")) { extra.add(id); noExtra.delete(id); }
-      else if (e.target.closest(".minus")) { extra.delete(id); if (isHealer(id)) noExtra.add(id); }
-      else {
-        if (selected.has(id)) { selected.delete(id); extra.delete(id); noExtra.delete(id); }
-        else { selected.add(id); if (isRover(id)) pickOneRover(id); }
-      }
+    card.addEventListener("click", () => {
+      if (selected.has(id)) selected.delete(id);
+      else { selected.add(id); if (isRover(id)) pickOneRover(id); }
       afterChange();
     });
   });
   updateCounter();
 }
 
-function updateCounter() {
-  const uses = selected.size + (mode === "matrix" ? [...extra].filter(i => selected.has(i)).length : 0);
-  document.getElementById("counter").textContent =
-    `Đã chọn ${selected.size} nhân vật` + (mode === "matrix" ? ` · ${uses} lượt dùng` : "");
-}
+function updateCounter() { /* đã bỏ dòng đếm số nhân vật đã chọn */ }
 
 function afterChange() {
   applyHealerDefaults();
@@ -248,8 +219,8 @@ function renderMembers(ids, flags = []) {
 // dòng "cặp chuẩn đang khớp" (đủ cả 2 người -> mỗi người được nâng 1 bậc)
 function pairLine(list) {
   if (!list || !list.length) return "";
-  return `<div class="pair-line">🔗 Cặp chuẩn (+1 bậc): ${list.map(([a, b]) =>
-    `<b>${esc(byId[a]?.name || "?")}</b> + <b>${esc(byId[b]?.name || "?")}</b>`).join(" · ")}</div>`;
+  return `<div class="pair-line">🔗 Cặp chuẩn (+1 bậc): ${list.map(p =>
+    p.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" + ")).join(" · ")}</div>`;
 }
 
 function teamCard(t, idx) {
@@ -261,7 +232,7 @@ function teamCard(t, idx) {
     ${renderMembers(t.members)}
     ${pairLine(t.pairs_active)}
     ${slotAlts(t, t.members)}
-    <div class="card-meta">${tierBadge(t.tier)}${esc(t.team_type || "")}${t.patch ? " · Patch " + esc(t.patch) : ""}
+    <div class="card-meta">${esc(t.team_type || "")}
       ${t.notes ? `<br>${esc(t.notes)}` : ""}</div>
   </div>`;
 }
@@ -276,7 +247,7 @@ function incompleteCard(x) {
     ${renderMembers(x.members.map(m => m.id), x.members)}
     ${pairLine(x.pairs_active)}
     ${slotAlts(x, x.members.map(m => m.id))}
-    <div class="card-meta">${tierBadge(x.tier)}${esc(x.team_type || "")}
+    <div class="card-meta">${esc(x.team_type || "")}
       · dành cho <span class="for">${x.for.map(i => esc(byId[i]?.name || "?")).join(", ")}</span>
       · ${missing ? `thiếu ${missing} nhân vật` : "đủ người (nhưng một số đã dùng ở team khác)"}</div>
   </div>`;
@@ -322,7 +293,7 @@ function layoutTeamCard(t, ti) {
     title = ev.name || "Team";
     pill = `<span class="score-pill">${ev.score.toFixed(1)}</span>`;
     alts = pairLine(ev.pairs_active) + slotAlts(ev, ev.order || t.members);
-    meta = `${tierBadge(ev.tier)}${esc(ev.team_type || "")}${ev.patch ? " · Patch " + esc(ev.patch) : ""}${ev.notes ? `<br>${esc(ev.notes)}` : ""}`;
+    meta = `${esc(ev.team_type || "")}${ev.notes ? `<br>${esc(ev.notes)}` : ""}`;
   } else if (full) {
     title = "Team tự xếp";
     pill = '<span class="score-pill zero" title="Bộ này không có trong database nên không được tính điểm">0 · ngoài DB</span>';
@@ -332,7 +303,7 @@ function layoutTeamCard(t, ti) {
     pill = `<span class="score-pill zero">${filled}/${SLOT_COUNT} · chưa đủ</span>`;
     if (!filled) meta = "Kéo nhân vật chưa dùng vào slot. Team không nhất thiết phải đủ 3 người.";
     else if (matched) {
-      meta = `Đang khớp một phần với team <span class="for">${esc(ev.name || "Team")}</span>${ev.tier ? " " + tierBadge(ev.tier) : ""}`;
+      meta = `Đang khớp một phần với team <span class="for">${esc(ev.name || "Team")}</span>`;
       alts = ev.hints.map(h => {
         const faces = h.ids.map(i => faceHTML(byId[i], { size: "sm", off: !selected.has(i) })).join("");
         return faces ? `<span class="row"><span class="lbl">Gợi ý ${ROLE_LABELS[h.si] || "slot " + (h.si + 1)}:</span>${faces}</span>` : "";
@@ -381,10 +352,7 @@ function renderSummary(left = leftoverNow()) {
   const done = layout.filter(t => !t.stale && t.members.every(x => x != null) && t.ev && t.ev.matched && t.ev.complete && t.ev.score != null);
   const total = done.reduce((a, t) => a + t.ev.score, 0);
   document.getElementById("summary").innerHTML = `
-    <div class="stat"><b>${total.toFixed(1)}</b><span>Tổng điểm</span></div>
-    <div class="stat"><b>${done.length}</b><span>Team hoàn chỉnh</span></div>
-    <div class="stat"><b>${left.reduce((a, l) => a + l.count, 0)}</b><span>Lượt nhân vật còn dư</span></div>
-    ${lastD ? `<div class="stat"><b>${lastD.usable_templates}</b><span>Team trong DB dùng được</span></div>` : ""}`;
+    <div class="stat"><b>${total.toFixed(1)}</b><span>Tổng điểm</span></div>`;
 }
 
 // chấm lại điểm các team sau mỗi lần chỉnh (chỉ để hiện điểm/gợi ý, KHÔNG đổi vị trí người dùng đã xếp)
@@ -525,93 +493,24 @@ function applyDrop(src, tgt) {
   document.addEventListener("pointercancel", end);
 })();
 
-// ---------------------------------------------------------------- xuất ảnh (chỉ mặt nhân vật)
-function loadFace(r) {
-  // 1) CDN gốc (nếu cho CORS)  2) proxy có CORS (wsrv.nl)  3) ảnh local static/img/<slug>.webp
-  const proxy = r.remote ? "https://wsrv.nl/?url=" + encodeURIComponent(r.remote.replace(/^https?:\/\//, "")) + "&w=144&h=144&fit=cover&output=png" : "";
-  const urls = [r.remote, proxy, "static/img/" + (r.slug || "") + ".webp"].filter(Boolean);
-  const tryUrl = u => new Promise(res => {
-    const im = new Image();
-    im.crossOrigin = "anonymous";
-    const t = setTimeout(() => res(null), 8000);
-    im.onload = () => { clearTimeout(t); res(im); };
-    im.onerror = () => { clearTimeout(t); res(null); };
-    im.src = u;
-  });
-  return (async () => { for (const u of urls) { const im = await tryUrl(u); if (im) return im; } return null; })();
-}
-
-function rrect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
-}
-
-// Dự phòng khi trình duyệt không cho vẽ ảnh vào canvas: hiện đúng bố cục gọn để chụp màn hình
-function showExportPreview(teams) {
+// ---------------------------------------------------------------- preview team (chỉ xem trên web, không tải ảnh)
+function showPreview() {
+  const teams = layout.filter(t => t.members.some(x => x != null));
+  if (!teams.length) return toast("Chưa có team nào để xem preview.", true);
   document.getElementById("exportPrev")?.remove();
   const ov = document.createElement("div");
   ov.id = "exportPrev"; ov.className = "exp-overlay";
   ov.innerHTML = `<div class="exp-box">
-    <div class="exp-note">Trình duyệt không cho tạo file ảnh tự động (nguồn ảnh nhân vật chặn). Hãy <b>chụp màn hình khung bên dưới</b> (Win+Shift+S / Cmd+Shift+4).
-      <button class="small ghost" id="expClose">Đóng ✕</button></div>
+    <div class="exp-note"><b>Preview team</b><button class="small ghost" id="expClose">Đóng ✕</button></div>
     <div class="exp-shot"><div class="exp-grid">${teams.map(t => `<div class="exp-team">${
       t.members.map(id => id != null ? faceHTML(byId[id], { size: "lg" }) : '<span class="exp-blank"></span>').join("")}</div>`).join("")}</div></div>
   </div>`;
   document.body.appendChild(ov);
-  const close = () => ov.remove();
+  const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", onKey);
   ov.querySelector("#expClose").addEventListener("click", close);
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
-}
-
-async function exportImage() {
-  const teams = layout.filter(t => t.members.some(x => x != null));
-  if (!teams.length) return toast("Chưa có team nào để xuất ảnh.", true);
-  toast("Đang tạo ảnh…");
-  const F = 72, G = 8, TG = 28, RG = 18, PAD = 18, SC = 2;          // mặt 72px như trên web, ảnh xuất gấp đôi độ nét
-  const cols = Math.min(2, teams.length), rows = Math.ceil(teams.length / 2);
-  const tw = SLOT_COUNT * F + (SLOT_COUNT - 1) * G;
-  const W = PAD * 2 + cols * tw + (cols - 1) * TG, H = PAD * 2 + rows * F + (rows - 1) * RG;
-
-  const ids = [...new Set(teams.flatMap(t => t.members.filter(x => x != null)))];
-  const imgs = new Map(await Promise.all(ids.map(async id => [id, await loadFace(byId[id])])));
-
-  const cv = document.createElement("canvas");
-  cv.width = W * SC; cv.height = H * SC;
-  const ctx = cv.getContext("2d");
-  ctx.scale(SC, SC);
-  ctx.fillStyle = "#0d1220"; ctx.fillRect(0, 0, W, H);
-  let failed = 0;
-  teams.forEach((t, i) => {
-    const bx = PAD + (i % 2) * (tw + TG), by = PAD + Math.floor(i / 2) * (F + RG);
-    t.members.forEach((id, si) => {
-      if (id == null) return;
-      const r = byId[id], x = bx + si * (F + G), y = by, col = EL_COLOR[r.element] || "#5b8cff";
-      ctx.save(); rrect(ctx, x, y, F, F, 16); ctx.clip();
-      const im = imgs.get(id);
-      if (im) ctx.drawImage(im, x, y, F, F);
-      else {
-        failed++;
-        const g = ctx.createLinearGradient(x, y, x + F, y + F);
-        g.addColorStop(0, col + "99"); g.addColorStop(1, "#0b0f1b");
-        ctx.fillStyle = g; ctx.fillRect(x, y, F, F);
-        ctx.fillStyle = "#fff"; ctx.font = "800 24px Arial"; ctx.textAlign = "center";
-        ctx.fillText(r.name.replace(/[()]/g, "").split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase(), x + F / 2, y + F / 2 + 8);
-      }
-      ctx.restore();
-      ctx.lineWidth = 2; ctx.strokeStyle = col; rrect(ctx, x + 1, y + 1, F - 2, F - 2, 15); ctx.stroke();
-    });
-  });
-  if (failed) { showExportPreview(teams); return; }
-  cv.toBlob(blob => {
-    if (!blob) return toast("Không xuất được ảnh.", true);
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "wuwa-teams.png";
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-    toast("Đã xuất ảnh wuwa-teams.png");
-  }, "image/png");
 }
 
 // ---------------------------------------------------------------- optimize
@@ -636,8 +535,8 @@ async function runOptimize(silent = false) {
     layout = d.teams.map(t => ({
       manual: false,
       members: t.members.slice(),
-      ev: { matched: true, complete: true, team_id: t.team_id, name: t.name, tier: t.tier, team_type: t.team_type,
-            patch: t.patch, notes: t.notes, score: t.score, slots: t.slots, hints: [], pairs_active: t.pairs_active || [] },
+      ev: { matched: true, complete: true, team_id: t.team_id, name: t.name, team_type: t.team_type,
+            notes: t.notes, score: t.score, slots: t.slots, hints: [], pairs_active: t.pairs_active || [] },
     }));
     document.getElementById("approxWarn").classList.toggle("hidden", !d.approx);
     const ln = document.getElementById("limitNote");
@@ -684,7 +583,7 @@ async function runPull(silent = false) {
       const r = byId[x.id];
       const teams = x.teams.map(t => `<span class="mini">
           ${t.members.map(id => faceHTML(byId[id], { size: "sm" })).join("")}
-          ${tierBadge(t.tier)}${t.score.toFixed(1)}</span>`).join("");
+          ${t.score.toFixed(1)}</span>`).join("");
       const sub = x.gain > 0
         ? `Điểm mới: ${x.new_score.toFixed(1)} · mở khóa ${x.unlocked} team`
         : x.unlocked > 0
@@ -694,7 +593,7 @@ async function runPull(silent = false) {
         <div class="no">${i + 1}</div>
         ${faceHTML(r, { size: "lg" })}
         <div>
-          <div class="nm">${esc(x.name)} <span class="hint">${r ? r.rarity : ""} ${esc(r?.element || "")}</span> ${r ? statusTag(r.status) : ""}</div>
+          <div class="nm">${esc(x.name)} ${r ? statusTag(r.status) : ""}</div>
           <div class="sub">${sub}</div>
           <div class="breakdown">Team ${fmtSigned(x.gain)} · Potential ${potBadge(x.potential)} = <b>${fmtSigned(x.pull)}</b></div>
           ${teams ? `<div class="mini-teams">${teams}</div>` : ""}
@@ -750,7 +649,7 @@ document.getElementById("selAll").addEventListener("click", () => {
 });
 document.getElementById("clearAll").addEventListener("click", () => {
   if (selected.size && !confirm("Bỏ chọn tất cả nhân vật?")) return;
-  selected.clear(); extra.clear(); noExtra.clear();
+  selected.clear(); extra.clear();
   afterChange();
 });
 document.querySelectorAll("#sortSeg button").forEach(b => b.addEventListener("click", () => {
@@ -769,7 +668,7 @@ document.getElementById("maxTeams").addEventListener("change", e => {
   else if (hasResult && dirty) toast("Đã lưu giới hạn. Bấm “Xếp team” để áp dụng (sẽ ghi đè team bạn tự chỉnh).");
 });
 document.getElementById("addTeamBtn").addEventListener("click", addTeam);
-document.getElementById("exportBtn").addEventListener("click", exportImage);
+document.getElementById("exportBtn").addEventListener("click", showPreview);
 document.getElementById("optimizeBtn").addEventListener("click", () => runOptimize(false));
 document.getElementById("pullBtn").addEventListener("click", () => runPull(false));
 
