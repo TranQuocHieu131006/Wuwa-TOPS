@@ -211,7 +211,6 @@ function teamCard(t, idx) {
   return `<div class="team-card">
     <div class="head">
       <div class="title"><span class="rank">#${idx + 1}</span>${esc(t.name || "Team")}</div>
-      <span class="score-pill">${t.score.toFixed(1)}</span>
     </div>
     ${renderMembers(t.members)}
     ${slotAlts(t, t.members)}
@@ -225,7 +224,6 @@ function incompleteCard(x) {
   return `<div class="team-card">
     <div class="head">
       <div class="title">${esc(x.name || "Team")}</div>
-      <span class="score-pill">${x.score.toFixed(1)}</span>
     </div>
     ${renderMembers(x.members.map(m => m.id), x.members)}
     ${slotAlts(x, x.members.map(m => m.id))}
@@ -273,13 +271,13 @@ function layoutTeamCard(t, ti) {
     pill = '<span class="score-pill zero">đang tính…</span>';
   } else if (full && matched) {
     title = ev.name || "Team";
-    pill = `<span class="score-pill">${ev.score.toFixed(1)}</span>`;
+    pill = "";
     alts = slotAlts(ev, ev.order || t.members);
     meta = `${esc(ev.team_type || "")}${ev.notes ? `<br>${esc(ev.notes)}` : ""}`;
   } else if (full) {
     title = "Team tự xếp";
-    pill = '<span class="score-pill zero" title="Bộ này không có trong database nên không được tính điểm">0 · ngoài DB</span>';
-    meta = "Bộ này không có trong database nên không tính điểm.";
+    pill = '<span class="score-pill zero" title="Bộ này không có trong database">ngoài DB</span>';
+    meta = "Bộ này không có trong database.";
   } else {
     title = t.manual ? "Team tự xếp" : (matched ? ev.name || "Team" : "Team tự xếp");
     pill = `<span class="score-pill zero">${filled}/${SLOT_COUNT} · chưa đủ</span>`;
@@ -331,10 +329,8 @@ function renderLayout() {
 }
 
 function renderSummary(left = leftoverNow()) {
-  const done = layout.filter(t => !t.stale && t.members.every(x => x != null) && t.ev && t.ev.matched && t.ev.complete && t.ev.score != null);
-  const total = done.reduce((a, t) => a + t.ev.score, 0);
-  document.getElementById("summary").innerHTML = `
-    <div class="stat"><b>${total.toFixed(1)}</b><span>Tổng điểm</span></div>`;
+  const el = document.getElementById("summary");
+  if (el) el.innerHTML = "";
 }
 
 // chấm lại điểm các team sau mỗi lần chỉnh (chỉ để hiện điểm/gợi ý, KHÔNG đổi vị trí người dùng đã xếp)
@@ -558,32 +554,29 @@ async function runPull(silent = false) {
     document.getElementById("pullTitle").innerHTML = `Nên pull nhân vật nào cho ${modeTag(mode)}?`;
     document.getElementById("pullHint").textContent =
       `Tính theo luật ${MODE_NAME[mode]}${mode === "matrix" ? " (mỗi nhân vật dùng tối đa ×2)" : " (mỗi nhân vật dùng 1 lần)"}. ` +
-      `Điểm hiện tại: ${d.base_score.toFixed(1)}. Điểm pull = mức tăng tổng điểm team nếu bạn có thêm nhân vật đó (S0) + điểm Potential + điểm Meta (+5 nếu pull xong là đủ bộ meta, +2.5 nếu mới hoàn thành cặp, khi DPS đang chơi team alt). Xếp từ cao xuống thấp.`;
-    document.getElementById("potLegend").innerHTML = potLegendHTML();
+      `Xếp từ nên pull nhất xuống thấp dần.`;
+    document.getElementById("potLegend").innerHTML = "";
 
     const pullCard = (x, i) => {
       const r = byId[x.id];
       const teams = x.teams.map(t => `<span class="mini">
-          ${t.members.map(id => faceHTML(byId[id], { size: "sm" })).join("")}
-          ${t.score.toFixed(1)}</span>`).join("");
+          ${t.members.map(id => faceHTML(byId[id], { size: "sm" })).join("")}</span>`).join("");
       const sub = x.gain > 0
-        ? `Điểm mới: ${x.new_score.toFixed(1)} · mở khóa ${x.unlocked} team`
+        ? `Mở khóa ${x.unlocked} team`
         : x.unlocked > 0
-          ? `Không tăng tổng điểm ngay, nhưng mở khóa ${x.unlocked} team (team tốt nhất ${x.best_unlocked.toFixed(1)})`
+          ? `Mở khóa ${x.unlocked} team`
           : x.meta
             ? "Chưa mở khóa team mới ngay, nhưng ghép cặp được với nhân vật đang có trong meta team"
-            : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ điểm Potential";
+            : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ Potential";
       return `<div class="pull">
         <div class="no">${i + 1}</div>
         ${faceHTML(r, { size: "lg" })}
         <div>
           <div class="nm">${esc(x.name)} ${r ? statusTag(r.status) : ""}</div>
           <div class="sub">${sub}</div>
-          <div class="breakdown">Team ${fmtSigned(x.gain)} · Potential ${potBadge(x.potential)}${x.meta_bonus ? ` · Meta <b>${fmtSigned(x.meta_bonus)}</b>` : ""} = <b>${fmtSigned(x.pull)}</b></div>
           ${x.meta ? `<div class="meta-note">⭐ Đưa ${x.meta.dps.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" / ")} từ team alt lên meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""} — ${x.meta.complete ? "đủ bộ meta" : "hoàn thành cặp, còn thiếu 1 người"}</div>` : ""}
           ${teams ? `<div class="mini-teams">${teams}</div>` : ""}
         </div>
-        <div class="gain ${x.pull > 0 ? "" : x.pull < 0 ? "neg" : "zero"}" title="Điểm pull">${x.pull > 0 ? "+" : x.pull < 0 ? "−" : ""}${Math.abs(x.pull).toFixed(1)}</div>
       </div>`;
     };
     // nhóm 1: ghép được team với nhân vật đang có; nhóm 2: "tiềm năng" = không ghép được team nào, chỉ lên nhờ điểm Potential
@@ -601,7 +594,7 @@ async function runPull(silent = false) {
         "Roll nhân vật này sẽ lập thêm được team với các nhân vật bạn đang có (đã gồm cả nhân vật sắp ra mắt).",
         pairable, "Chưa có nhân vật nào ghép được team với roster hiện tại.") +
       group("Nhân vật tiềm năng",
-        "Chưa ghép được team nào với roster hiện tại, nhưng có điểm Potential cao nên vẫn được gợi ý.",
+        "Chưa ghép được team nào với roster hiện tại, nhưng có Potential cao nên vẫn được gợi ý.",
         potential, "Không có nhân vật tiềm năng nào (chấm Potential trong Admin → bảng Resonator).");
     if (!silent) document.getElementById("pullResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
