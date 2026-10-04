@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Optimizer – Admin</title>
-<link rel="stylesheet" href="static/style.css?v=14">
+<link rel="stylesheet" href="static/style.css?v=17">
 </head>
 <body>
 <header class="top">
@@ -12,7 +12,7 @@
     <h1>Dữ liệu <span>Team &amp; Resonator</span></h1>
     <p>Bạn tự thêm / sửa team và chấm điểm. Optimizer chỉ dựa vào điểm này.</p>
   </div>
-  <div style="display:flex;gap:8px;"><a class="nav-link" href="index.html">← Quay lại Optimizer</a><a class="nav-link hidden" id="logoutLink" href="#">Đăng xuất</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;"><div class="seg small layout-seg" id="layoutSeg" title="Mặc định: các panel xếp dọc · Pro: panel Thêm team một bên, Database team một bên"><button type="button" data-layout="default" class="active">▤ Mặc định</button><button type="button" data-layout="pro">◫ Pro</button></div><a class="nav-link" href="index.html">← Quay lại Optimizer</a><a class="nav-link hidden" id="logoutLink" href="#">Đăng xuất</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
 </header>
 
 <section class="panel" id="gate" style="max-width:420px;margin:40px auto;">
@@ -26,7 +26,7 @@
 
 <div id="localBanner" class="warn hidden" style="max-width:1200px;margin:0 auto 12px;"></div>
 
-<main class="admin-grid">
+<main class="admin-grid" id="adminGrid">
 
   <section class="panel" id="formPanel">
     <div class="panel-head">
@@ -58,28 +58,40 @@
     </form>
   </section>
 
-  <section class="panel">
-    <div class="panel-head">
-      <div>
-        <h2>Database team <span class="hint" id="teamCount"></span></h2>
-        <p class="hint">Database chia 2 nửa: <b>Meta team</b> (team chuẩn) và <b>Alternative team</b> (team chắp vá). Tắt công tắc “Dùng” để loại tạm một team khỏi tính toán mà không cần xóa.</p>
-      </div>
-      <div class="tools">
-        <button class="small" id="exportBtn">⬇ Xuất JSON</button>
-        <button class="small primary" id="exportJsBtn" title="Tải file data.js để thay vào repo → cập nhật dữ liệu cho mọi người">⬇ Xuất data.js (cập nhật site)</button>
-        <button class="small danger" id="resetLocalBtn" title="Bỏ mọi chỉnh sửa trên trình duyệt này, quay về dữ liệu gốc của site">↺ Về dữ liệu gốc</button>
-        <button class="small" id="importBtn">⬆ Nhập JSON</button>
-        <input type="file" id="importFile" accept="application/json" class="hidden">
-        <button class="small danger" id="reseedBtn" title="Xóa team nguồn Prydwen rồi nạp lại bản gốc">↺ Nạp lại team Prydwen</button>
-      </div>
-    </div>
-    <div class="toolbar">
-      <input type="search" id="teamSearch" placeholder="Tìm theo tên team / nhân vật…">
-    </div>
-    <div class="table-wrap" id="teamTable"></div>
-  </section>
+  <div class="splitter" id="splitter" title="Kéo để đổi độ rộng · bấm đúp để về mặc định" role="separator" aria-orientation="vertical"></div>
 
-  <section class="panel">
+  <div class="db-col" id="dbCol">
+    <section class="panel" id="dbPanel">
+      <div class="panel-head">
+        <div>
+          <h2>Database team <span class="hint" id="teamCount"></span></h2>
+          <p class="hint">Chia 2 panel: <b>Meta team</b> (team chuẩn) và <b>Alternative team</b> (team chắp vá). Tắt công tắc “Dùng” để loại tạm một team khỏi tính toán mà không cần xóa.</p>
+        </div>
+        <div class="tools">
+          <button class="small" id="exportBtn">⬇ Xuất JSON</button>
+          <button class="small primary" id="exportJsBtn" title="Tải file data.js để thay vào repo → cập nhật dữ liệu cho mọi người">⬇ Xuất data.js (cập nhật site)</button>
+          <button class="small danger" id="resetLocalBtn" title="Bỏ mọi chỉnh sửa trên trình duyệt này, quay về dữ liệu gốc của site">↺ Về dữ liệu gốc</button>
+          <button class="small" id="importBtn">⬆ Nhập JSON</button>
+          <input type="file" id="importFile" accept="application/json" class="hidden">
+          <button class="small danger" id="reseedBtn" title="Xóa team nguồn Prydwen rồi nạp lại bản gốc">↺ Nạp lại team Prydwen</button>
+        </div>
+      </div>
+      <div class="toolbar">
+        <input type="search" id="teamSearch" placeholder="Tìm theo tên team / nhân vật…">
+      </div>
+    </section>
+
+    <section class="panel kind-panel meta" id="metaPanel">
+      <div class="panel-head"><div><h2>⭐ Meta team <span class="hint" id="metaCount"></span></h2></div></div>
+      <div class="table-wrap" id="metaTable"></div>
+    </section>
+
+    <section class="panel kind-panel alt" id="altPanel">
+      <div class="panel-head"><div><h2>🧩 Alternative team <span class="hint" id="altCount"></span></h2></div></div>
+      <div class="table-wrap" id="altTable"></div>
+    </section>
+
+  <section class="panel" id="resPanel">
     <div class="panel-head">
       <div>
         <h2>Resonator <span class="hint" id="resCount"></span></h2>
@@ -99,6 +111,9 @@
     </form>
     <div class="table-wrap" id="resTable"></div>
   </section>
+  </div>
+
+
 </main>
 
 <nav class="float-nav" aria-label="Liên kết">
@@ -115,6 +130,6 @@
 <script src="static/engine.js?v=12"></script>
 <script src="static/common.js?v=9"></script>
 <script src="static/gate.js?v=7"></script>
-<script src="static/admin.js?v=8"></script>
+<script src="static/admin.js?v=11"></script>
 </body>
 </html>

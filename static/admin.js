@@ -245,7 +245,10 @@ function editTeam(id) {
   document.getElementById("saveBtn").textContent = "Lưu thay đổi";
   document.getElementById("cancelEdit").classList.remove("hidden");
   renderSlots();
-  document.getElementById("formPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  setCollapsed("formPanel", false);
+  const fp = document.getElementById("formPanel");
+  if (document.body.classList.contains("layout-pro") && fp.scrollHeight > fp.clientHeight) fp.scrollTo({ top: 0, behavior: "smooth" });
+  else if (!document.body.classList.contains("layout-pro")) fp.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function deleteTeam(id) {
@@ -253,6 +256,21 @@ async function deleteTeam(id) {
   if (!confirm(`Xóa team "${t?.name || "này"}"?`)) return;
   try { await api(`/api/teams/${id}`, "DELETE"); toast("Đã xóa"); await load(); }
   catch (err) { toast(err.message, true); }
+}
+
+async function duplicateTeam(id) {
+  const t = teams.find(x => x.id === id);
+  if (!t) return;
+  try {
+    await api("/api/teams", "POST", {
+      name: (t.name ? t.name + " " : "") + "(bản sao)",
+      slots: t.slots, tiers: t.tiers, pairs: t.pairs || [],
+      score: t.score, kind: t.kind === "alt" ? "alt" : "meta",
+      team_type: t.team_type || "", notes: t.notes || "",
+    });
+    toast("Đã nhân bản team");
+    await load();
+  } catch (err) { toast(err.message, true); }
 }
 
 async function toggleActive(id, on) {
@@ -279,24 +297,27 @@ function renderTeams() {
         <td><div class="row-actions">
           <button class="small" data-edit="${t.id}">Sửa</button>
           <button class="small" data-kind="${t.id}" data-to="${t.kind === "alt" ? "meta" : "alt"}" title="Chuyển sang ${t.kind === "alt" ? "Meta" : "Alternative"}">${t.kind === "alt" ? "→ Meta" : "→ Alt"}</button>
+          <button class="small" data-dup="${t.id}" title="Nhân bản team này (giữ nguyên dạng, slot, bậc, cặp chuẩn, điểm)">⧉ Nhân bản</button>
           <button class="small danger" data-del="${t.id}">Xóa</button></div></td>
       </tr>`).join("");
-  const half = (icon, title, cls, l) => `
-    <h3 class="sec kind-head ${cls}">${icon} ${title} <span class="hint">(${l.length})</span></h3>
-    ${l.length ? `<table>
+  const table = (l, emptyMsg) => l.length ? `<table>
       <thead><tr><th>Dùng</th><th>Team</th><th>Thành phần (slot 1 · 2 · 3)</th><th>Điểm</th><th></th></tr></thead>
-      <tbody>${rows(l)}</tbody></table>` : `<p class="hint">Chưa có team nào ở nhóm này.</p>`}`;
-  document.getElementById("teamTable").innerHTML =
-    half("⭐", "Meta team", "meta", list.filter(t => t.kind !== "alt")) +
-    half("🧩", "Alternative team", "alt", list.filter(t => t.kind === "alt"));
-  const tb = document.getElementById("teamTable");
-  tb.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editTeam(Number(b.dataset.edit))));
-  tb.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => deleteTeam(Number(b.dataset.del))));
-  tb.querySelectorAll("[data-act]").forEach(b => b.addEventListener("change", () => toggleActive(Number(b.dataset.act), b.checked)));
-  tb.querySelectorAll("[data-kind]").forEach(b => b.addEventListener("click", async () => {
-    try { await api(`/api/teams/${b.dataset.kind}/kind`, "POST", { kind: b.dataset.to }); await load(); }
-    catch (err) { toast(err.message, true); }
-  }));
+      <tbody>${rows(l)}</tbody></table>` : `<p class="hint">${emptyMsg}</p>`;
+  const metaL = list.filter(t => t.kind !== "alt"), altL = list.filter(t => t.kind === "alt");
+  document.getElementById("metaCount").textContent = `(${metaL.length})`;
+  document.getElementById("altCount").textContent = `(${altL.length})`;
+  document.getElementById("metaTable").innerHTML = table(metaL, "Chưa có team nào ở nhóm này.");
+  document.getElementById("altTable").innerHTML = table(altL, "Chưa có team nào ở nhóm này.");
+  for (const tb of [document.getElementById("metaTable"), document.getElementById("altTable")]) {
+    tb.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => editTeam(Number(b.dataset.edit))));
+    tb.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", () => deleteTeam(Number(b.dataset.del))));
+    tb.querySelectorAll("[data-act]").forEach(b => b.addEventListener("change", () => toggleActive(Number(b.dataset.act), b.checked)));
+    tb.querySelectorAll("[data-dup]").forEach(b => b.addEventListener("click", () => duplicateTeam(Number(b.dataset.dup))));
+    tb.querySelectorAll("[data-kind]").forEach(b => b.addEventListener("click", async () => {
+      try { await api(`/api/teams/${b.dataset.kind}/kind`, "POST", { kind: b.dataset.to }); await load(); }
+      catch (err) { toast(err.message, true); }
+    }));
+  }
 }
 document.getElementById("teamSearch").addEventListener("input", renderTeams);
 
@@ -417,4 +438,109 @@ document.getElementById("resStatus").innerHTML = STATUS_ORDER.map(k => `<option 
 document.getElementById("resPotential").innerHTML = '<option value="">Potential: chưa chấm (0)</option>' +
   POTENTIALS.map(p => `<option value="${p}">Potential ${p} (${fmtSigned(POTENTIAL_POINTS[p])})</option>`).join("");
 document.getElementById("potLegend").innerHTML = potLegendHTML();
+// ------------------------------------------------------------ thu gọn panel (+/−) & chế độ Pro
+const COLLAPSE_KEY = "wuwa.admin.collapsed", LAYOUT_KEY = "wuwa.admin.layout";
+const readJSON = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+const collapsedState = readJSON(COLLAPSE_KEY, {});
+function setCollapsed(id, on) {
+  const p = document.getElementById(id);
+  if (!p) return;
+  p.classList.toggle("collapsed", on);
+  const b = p.querySelector(":scope > .panel-head > .collapse-btn");
+  if (b) { b.textContent = on ? "+" : "−"; b.title = on ? "Mở rộng panel" : "Thu nhỏ panel"; b.setAttribute("aria-expanded", String(!on)); }
+  collapsedState[id] = on;
+  try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(collapsedState)); } catch (e) { /* bỏ qua */ }
+}
+document.querySelectorAll("main .panel[id]").forEach(p => {
+  const head = p.querySelector(":scope > .panel-head");
+  if (!head) return;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "collapse-btn";
+  b.addEventListener("click", () => setCollapsed(p.id, !p.classList.contains("collapsed")));
+  head.insertBefore(b, head.firstChild);
+  setCollapsed(p.id, !!collapsedState[p.id]);
+});
+
+function setLayout(mode) {
+  const pro = mode === "pro";
+  document.body.classList.toggle("layout-pro", pro);
+  document.querySelectorAll("#layoutSeg button").forEach(b => b.classList.toggle("active", b.dataset.layout === (pro ? "pro" : "default")));
+  try { localStorage.setItem(LAYOUT_KEY, pro ? "pro" : "default"); } catch (e) { /* bỏ qua */ }
+}
+document.querySelectorAll("#layoutSeg button").forEach(b => b.addEventListener("click", () => setLayout(b.dataset.layout)));
+try { setLayout(localStorage.getItem(LAYOUT_KEY) === "pro" ? "pro" : "default"); } catch (e) { setLayout("default"); }
+
+// ------------------------------------------------------------ kéo thả đổi kích thước
+// - Thanh dọc giữa 2 cột (chỉ ở chế độ Pro): đổi độ rộng cột Thêm team (cột phải tự co giãn theo).
+// - Vệt dưới mỗi panel: kéo để đổi chiều cao. Các panel bên phải (Meta / Alt / Resonator) dùng CHUNG một
+//   chiều cao: kéo một cái là cả ba cùng đổi. Panel Thêm team có chiều cao riêng. Bấm đúp vệt để về tự động.
+const SIZE_KEY = "wuwa.admin.sizes";
+const sizes = readJSON(SIZE_KEY, {});
+const saveSizes = () => { try { localStorage.setItem(SIZE_KEY, JSON.stringify(sizes)); } catch (e) { /* bỏ qua */ } };
+const RIGHT_IDS = ["metaPanel", "altPanel", "resPanel"];
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+function applyHeight(group, h) {                      // group: "right" | "form"; h = null -> tự động
+  const ids = group === "right" ? RIGHT_IDS : ["formPanel"];
+  ids.forEach(id => {
+    const p = document.getElementById(id);
+    if (!p) return;
+    p.classList.toggle("sized", h !== null);
+    if (h !== null) p.style.setProperty("--sz-h", h + "px"); else p.style.removeProperty("--sz-h");
+  });
+  if (h === null) delete sizes[group]; else sizes[group] = Math.round(h);
+  saveSizes();
+}
+
+function dragStart(e, axis, onMove, onDone, el) {
+  e.preventDefault();
+  el.setPointerCapture(e.pointerId);
+  el.classList.add("dragging");
+  document.body.classList.add("resizing", axis === "v" ? "rz-v" : "rz-h");
+  const move = ev => onMove(ev);
+  const up = () => {
+    el.removeEventListener("pointermove", move);
+    el.removeEventListener("pointerup", up);
+    el.removeEventListener("pointercancel", up);
+    el.classList.remove("dragging");
+    document.body.classList.remove("resizing", "rz-v", "rz-h");
+    if (onDone) onDone();
+  };
+  el.addEventListener("pointermove", move);
+  el.addEventListener("pointerup", up);
+  el.addEventListener("pointercancel", up);
+}
+
+[["formPanel", "form"], ...RIGHT_IDS.map(id => [id, "right"])].forEach(([id, group]) => {
+  const p = document.getElementById(id);
+  if (!p) return;
+  const grip = document.createElement("div");
+  grip.className = "panel-grip";
+  grip.title = group === "right" ? "Kéo để đổi chiều cao (Meta / Alt / Resonator cùng đổi) · bấm đúp để về tự động" : "Kéo để đổi chiều cao · bấm đúp để về tự động";
+  if (group === "form") { grip.classList.add("inside"); p.appendChild(grip); }   // nằm trong panel (dính đáy) để không phá lưới 2 cột
+  else p.after(grip);
+  grip.addEventListener("pointerdown", e => {
+    const y0 = e.clientY, h0 = p.getBoundingClientRect().height;
+    dragStart(e, "v", ev => applyHeight(group, clamp(h0 + ev.clientY - y0, 120, 2400)), null, grip);
+  });
+  grip.addEventListener("dblclick", () => applyHeight(group, null));
+});
+Object.keys(sizes).forEach(g => { if ((g === "right" || g === "form") && sizes[g] > 0) applyHeight(g, sizes[g]); });
+
+const splitter = document.getElementById("splitter");
+const grid = document.getElementById("adminGrid");
+function applyLeftWidth(w) {
+  if (w === null) { grid.style.removeProperty("--left-w"); delete sizes.leftW; }
+  else { grid.style.setProperty("--left-w", w + "px"); sizes.leftW = Math.round(w); }
+  saveSizes();
+}
+splitter.addEventListener("pointerdown", e => {
+  const x0 = e.clientX, w0 = document.getElementById("formPanel").getBoundingClientRect().width;
+  const total = grid.getBoundingClientRect().width;
+  dragStart(e, "h", ev => applyLeftWidth(clamp(w0 + ev.clientX - x0, 300, total - 14 - 360)), null, splitter);
+});
+splitter.addEventListener("dblclick", () => applyLeftWidth(null));
+if (sizes.leftW > 0) applyLeftWidth(sizes.leftW);
+
 load();

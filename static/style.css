@@ -467,3 +467,72 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 .kind-head.meta { color: #ffd76a; }
 .kind-head.alt { color: #8fe9ff; }
 .meta-note { margin-top: 4px; font-size: 12px; color: #ffd76a; }
+
+
+/* ---------- Admin: nút thu gọn panel (+/−) ---------- */
+.panel-head { position: relative; }
+.collapse-btn {
+  width: 30px; height: 30px; padding: 0; flex: 0 0 auto; border-radius: 9px;
+  font-size: 18px; font-weight: 800; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+}
+.panel-head > div:not(.tools) { flex: 1; min-width: 0; }
+.panel.collapsed { padding-top: 14px; padding-bottom: 14px; }
+.panel.collapsed > :not(.panel-head) { display: none !important; }
+.panel.collapsed .panel-head .tools, .panel.collapsed .panel-head p { display: none; }
+.panel.collapsed .panel-head h2 { margin: 0; }
+.panel.collapsed .panel-head { align-items: center; }
+
+/* cột database (tools + meta + alt) */
+.db-col { display: flex; flex-direction: column; min-width: 0; }
+.kind-panel.meta h2 { color: var(--gold); }
+.kind-panel.alt h2 { color: var(--purple); }
+.layout-seg { flex: 0 0 auto; }
+
+/* ---------- Admin: chế độ Pro (Thêm team một bên, Database một bên) ---------- */
+@media (min-width: 1024px) {
+  body.layout-pro main#adminGrid { max-width: none; padding: 0 16px; margin-bottom: 70px; }
+  body.layout-pro .admin-grid { grid-template-columns: var(--left-w, 480px) 14px minmax(0, 1fr); align-items: start; gap: 0; }
+  body.layout-pro #formPanel,
+  body.layout-pro #dbCol,
+  body.layout-pro .splitter {
+    position: sticky; top: 84px;
+    max-height: calc(100vh - 100px); overflow-y: auto; overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  body.layout-pro #formPanel { margin-bottom: 0; }
+  body.layout-pro #dbCol .panel:last-child { margin-bottom: 0; }
+  body.layout-pro #formPanel, body.layout-pro #dbCol { z-index: 1; }
+  /* form hẹp hơn nên slot xếp dọc */
+  body.layout-pro #formPanel .slots { grid-template-columns: 1fr; }
+}
+
+/* ---------- thanh kéo đổi kích thước ---------- */
+.splitter { display: none; }
+@media (min-width: 1024px) {
+  body.layout-pro .splitter {
+    display: block; height: calc(100vh - 100px); cursor: col-resize; touch-action: none; position: sticky;
+  }
+  body.layout-pro .splitter::before {
+    content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 4px; border-radius: 4px;
+    background: var(--line); transition: background .15s;
+  }
+  body.layout-pro .splitter::after {
+    content: "⋮"; position: absolute; top: 50%; left: 0; right: 0; text-align: center;
+    transform: translateY(-50%); color: var(--muted); font-weight: 800; letter-spacing: 0; pointer-events: none;
+  }
+  body.layout-pro .splitter:hover::before, .splitter.dragging::before { background: var(--accent); }
+}
+.panel-grip {
+  height: 10px; width: 90px; margin: -16px auto 10px; border-radius: 6px; background: var(--line);
+  cursor: ns-resize; position: relative; z-index: 2; touch-action: none; transition: background .15s;
+}
+.panel-grip::after { content: ""; position: absolute; left: 30px; right: 30px; top: 4px; height: 2px; border-radius: 2px; background: var(--muted); opacity: .7; }
+.panel-grip:hover, .panel-grip.dragging { background: var(--accent); }
+.panel.collapsed + .panel-grip { display: none; }
+.panel.sized { height: var(--sz-h); overflow-y: auto; scrollbar-width: thin; }
+.panel.sized.collapsed { height: auto; overflow: visible; }
+@media (min-width: 1024px) { body.layout-pro #formPanel.sized { max-height: none; } }
+body.resizing { user-select: none; }
+body.resizing.rz-v { cursor: ns-resize; }
+body.resizing.rz-h { cursor: col-resize; }
+.panel-grip.inside { position: sticky; bottom: -14px; margin: 10px auto -14px; }
