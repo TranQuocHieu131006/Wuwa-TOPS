@@ -555,12 +555,15 @@
       if (Number.isNaN(score)) throw 0;
     } catch (e) { fail("Dữ liệu team không hợp lệ"); }
     if (score < 1 || score > SCORE_MAX) fail("Điểm team phải từ 1 đến 100");
-    if (slots.length !== 3 || slots.some(s => !s.length)) fail("Team cần đủ 3 slot, mỗi slot ít nhất 1 nhân vật");
+    if (slots.length !== 3) fail("Team cần đúng 3 slot");
+    const memberCount = slots.reduce((n, s) => n + s.length, 0);
+    if (memberCount < 2) fail("Team cần ít nhất 2 nhân vật");
     if (slots.some(s => new Set(s).size !== s.length)) fail("Một slot không được có nhân vật trùng");
     const valid = new Set(db.resonators.map(r => r.id));
     if (slots.some(s => s.some(x => !valid.has(x)))) fail("Có nhân vật không tồn tại");
     const pairs = normPairs(slots, data.pairs);
-    if (!expandTemplate({ id: 0, slots, tiers: normTiers(slots, data.tiers), pairs, score }, null).length) fail("Không ghép được 3 nhân vật khác nhau từ các slot này");
+    // Team có thể thiếu slot, miễn là có ít nhất 2 nhân vật.
+    // Các team đủ 3 nhân vật vẫn giữ nguyên logic cũ; team thiếu người chỉ dùng được ở các chức năng hỗ trợ team chưa hoàn chỉnh.
     const s = k => String(data[k] || "").trim();
     return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
   }
@@ -712,7 +715,7 @@
       let slots;
       try { slots = t.slots.map(s => s.map(n => { if (!(n in n2i)) throw 0; return n2i[n]; })); }
       catch (e) { skipped++; continue; }
-      if (slots.length !== 3 || slots.some(s => !s.length)) { skipped++; continue; }
+      if (slots.length !== 3 || slots.reduce((n, s) => n + s.length, 0) < 2) { skipped++; continue; }
       const key = (t.name || "") + "|" + JSON.stringify(slots);
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({

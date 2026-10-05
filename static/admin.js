@@ -291,7 +291,7 @@ function renderTeams() {
   const rows = l => l.map(t => `<tr class="${t.active ? "" : "off"}">
         <td><input type="checkbox" ${t.active ? "checked" : ""} data-act="${t.id}"></td>
         <td><b>${esc(t.name || "—")}</b><div class="src">${esc(t.team_type || "")}${t.notes ? " · " + esc(t.notes) : ""}
-            ${t.source === "prydwen" ? " · Prydwen" : ""}</div></td>
+            ${t.source === "prydwen" ? "" : ""}</div></td>
         <td><div class="mini-faces">${t.slots.map(s =>
             `<span class="mini-slot">${s.map(i => faceHTML(byId[i], { size: "sm" })).join("")}</span>`).join("")}</div></td>
         <td><b>${fmtScore(t.score)}</b></td>
