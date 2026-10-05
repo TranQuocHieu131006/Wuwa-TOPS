@@ -56,7 +56,7 @@ header.top p { margin: 2px 0 0; font-size: 13px; }
 .nav-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .nav-link.guide { border-color: var(--accent); font-weight: 700; }
 
-main { max-width: 1240px; margin: 24px auto 90px; padding: 0 20px; }
+main { max-width: 1240px; margin: 24px auto 60px; padding: 0 20px; }
 .panel {
   background: linear-gradient(180deg, var(--panel), var(--bg2));
   border: 1px solid var(--line); border-radius: 18px;
@@ -174,8 +174,6 @@ body.mode-matrix .mode-tag.matrix { color: #ffb0bb; background: rgba(255,107,129
 .float-nav .fn:hover { transform: translateY(-2px) scale(1.06); }
 .float-nav .fn.yt:hover { border-color: #ff1f3d; box-shadow: 0 0 14px rgba(255,31,61,.4); }
 .float-nav .fn.dc:hover { border-color: #5865f2; box-shadow: 0 0 14px rgba(88,101,242,.5); }
-.actions.wide { max-width: 1200px; margin: 0 auto 14px; }
-@media (max-width: 1380px) { .actions.wide { margin-left: 14px; margin-right: 80px; } }
 .toast { right: auto; left: 50%; transform: translateX(-50%); }
 
 /* ---------- action bar ---------- */
@@ -528,3 +526,53 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 body.resizing { user-select: none; }
 body.resizing.rz-v { cursor: ns-resize; }
 .panel-grip.inside { position: sticky; bottom: -14px; margin: 10px auto -14px; }
+
+/* ---------- nút Cập nhật + dấu chấm đỏ ---------- */
+.patch-btn { position: relative; cursor: pointer; font-family: inherit; }
+.patch-btn .dot {
+  position: absolute; top: -4px; right: -4px; width: 12px; height: 12px; border-radius: 50%;
+  background: #ff3b4e; border: 2px solid var(--bg, #0d1220); box-shadow: 0 0 8px rgba(255,59,78,.8);
+}
+.patch-box { width: min(560px, 100%); }
+.patch-list { max-height: 70vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 4px 2px; scrollbar-width: thin; }
+.patch-item { background: var(--panel2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.patch-item.latest { border-color: var(--accent); }
+.patch-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.patch-ver { font-weight: 800; font-size: 16px; color: var(--accent2); }
+.patch-new { font-size: 11px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: rgba(255,59,78,.18); color: #ff8a96; border: 1px solid rgba(255,59,78,.5); }
+.patch-date { margin-left: auto; font-size: 12px; color: var(--muted); }
+.patch-item ul { margin: 0; padding-left: 20px; }
+.patch-item li { margin: 3px 0; font-size: 14px; }
+
+/* ---------- 2 panel Xếp team / Nên pull nằm ngang (70 / 30) ---------- */
+.work-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 3fr); gap: 20px; align-items: start; }
+.work-grid > .panel { margin-bottom: 0; min-width: 0; }
+.head-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin-left: auto; }
+.head-actions button { padding: 10px 16px; }
+.head-actions label.inline.limit input { width: 130px; }
+#pullResult .panel-head h2 { font-size: 18px; }
+@media (min-width: 1100px) {
+  #pullResult { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; }
+}
+@media (max-width: 1099px) { .work-grid { grid-template-columns: 1fr; } }
+/* panel Nên pull hẹp: card gọn lại */
+#pullResult .pull { grid-template-columns: 26px 56px 1fr; gap: 10px; padding: 10px 12px; }
+#pullResult .pull .no { font-size: 18px; }
+#pullResult .pull .nm { font-size: 15px; }
+.panel .panel-head > div.head-actions { flex: 0 0 auto; min-width: 0; }
+
+/* tinh chỉnh header 2 panel */
+#result .panel-head > div:first-child { flex: 1 1 260px; }
+.head-actions label.inline.limit input { width: 150px; }
+/* panel Nên pull hẹp: tiêu đề bên trái, nút gọn ở góc phải */
+#pullResult .pull-head { align-items: center; flex-wrap: nowrap; gap: 10px; }
+#pullResult .pull-head h2 { flex: 1 1 auto; min-width: 0; margin: 0; }
+#pullResult .pull-head .head-actions { flex: 0 0 auto; }
+#pullResult .head-actions button { padding: 9px 14px; white-space: nowrap; }
+#pullResult .pull-head + .hint { margin-top: 8px; }
+#pullResult .pull .face.lg { --s: 52px; border-radius: 13px; }
+#pullResult .pull .meta-note { word-break: break-word; }
+@media (max-width: 720px) {
+  .panel .panel-head > div.head-actions { flex: 1 1 100%; max-width: 100%; margin-left: 0; justify-content: flex-start; }
+  .head-actions label.inline.limit input { width: 120px; }
+}

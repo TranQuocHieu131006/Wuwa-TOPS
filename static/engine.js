@@ -4,7 +4,9 @@
 (function (root) {
   "use strict";
 
-  const RANK_PENALTY = 0.5; // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 0.5 điểm; cùng bậc thì không trừ
+  const SCORE_MAX = 100;     // thang điểm 1–100
+  const SCORE_MIN_EFF = 0.1; // điểm sàn sau khi trừ bậc (team vẫn được tính)
+  const RANK_PENALTY = 5;    // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 5 điểm; cùng bậc thì không trừ
   const SLOT_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
   const LEGACY_MAX = 3;     // dữ liệu cũ chưa có "tiers": suy ra từ vị trí, tối đa tới C (như trước đây)
   const tierIdx = v => { const i = SLOT_TIERS.indexOf(String(v || "").toUpperCase()); return i < 0 ? 0 : i; };
@@ -71,9 +73,9 @@
 
   // ---- Điểm cộng "lên meta" cho Nên pull ai? ----
   // Team meta có cặp (A,B) + người thứ 3 (C). Nếu DPS của team meta đó đang phải chơi trong team alt, thì pull người còn thiếu của cặp:
-  //   +5   nếu đã có người kia của cặp VÀ C  (pull xong là đủ bộ meta)
-  //   +2.5 nếu đã có người kia của cặp nhưng chưa có C (mới hoàn thành cặp)
-  const META_FULL = 5, META_PAIR = 5;
+  //   +50  nếu đã có người kia của cặp VÀ C  (pull xong là đủ bộ meta)
+  //   +25  nếu đã có người kia của cặp nhưng chưa có C (mới hoàn thành cặp)
+  const META_FULL = 50, META_PAIR = 25;
   // cặp 2 người (a,b): có cách xếp a,b vào 2 slot khác nhau mà slot còn lại có người đang sở hữu (C)?
   function pairHasC(t, pair, owned) {
     const [a, b] = pair;
@@ -84,14 +86,18 @@
       }
     return false;
   }
-  // trả về { bonus, team, dps, complete } tốt nhất cho nhân vật x (chưa sở hữu); bonus = 0 nếu không có
+  // trả về { bonus, team, dps, complete, self } tốt nhất cho nhân vật x (chưa sở hữu); bonus = 0 nếu không có
+  //  - x là support/sub trong cặp: cần có DPS (slot 1) của team meta đó đang phải chơi trong team alt  -> self=false
+  //  - x chính là DPS (slot 1) của team meta: x chưa có nên không có chuyện "đang chơi alt"; chỉ cần
+  //    người còn lại trong cặp đã có (đối xứng với trường hợp trên)                                    -> self=true
   function metaBonusFor(x, templates, owned, usedMeta) {
     let best = { bonus: 0 };
     for (const t of templates) {
       if (t.kind !== "meta" || !t.slots.some(s => s.includes(x))) continue;
+      const self = t.slots[0].includes(x);
       // DPS (slot 1) của team meta này đang được dùng trong team alt
-      const dps = t.slots[0].filter(i => i !== x && owned.has(i) && !usedMeta.has(i));
-      if (!dps.length) continue;
+      const dps = self ? [] : t.slots[0].filter(i => i !== x && owned.has(i) && !usedMeta.has(i));
+      if (!self && !dps.length) continue;
       for (const pair of t.pairs || []) {
         if (!pair.includes(x)) continue;
         const others = pair.filter(i => i !== x);
@@ -100,7 +106,7 @@
         let bonus = 0, complete = false;
         if (pair.length === 3) { complete = have.length === 2; bonus = complete ? META_FULL : META_PAIR; }
         else if (have.length === 1) { complete = pairHasC(t, pair, owned); bonus = complete ? META_FULL : META_PAIR; }
-        if (bonus > best.bonus) best = { bonus, team: t, dps, complete };
+        if (bonus > best.bonus) best = { bonus, team: t, dps, complete, self };
       }
     }
     return best;
@@ -141,7 +147,7 @@
       const ids = [a[0], b[0], c[0]];
       const bst = boostedIds(t, ids);
       const pen = (effIdx(a[1], bst.has(a[0])) + effIdx(b[1], bst.has(b[0])) + effIdx(c[1], bst.has(c[0]))) * RANK_PENALTY;
-      const score = r2(Math.max(Number(t.score) - pen, 0.01));
+      const score = r2(Math.max(Number(t.score) - pen, SCORE_MIN_EFF));
       const key = ids.slice().sort((x, y) => x - y).join(",");
       const cur = best.get(key);
       if (!cur || score > cur.score) best.set(key, { tid: t.id, ids, score });
@@ -399,7 +405,7 @@
     let pen = 0;
     const bst = boostedIds(t, members);
     members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? effIdx(slotTierIdx(t, si, i), bst.has(m)) : 0; });
-    return r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
+    return r2(Math.max(Number(t.score) - pen * RANK_PENALTY, SCORE_MIN_EFF));
   }
 
   function incompleteSuggestions(leftoverIds, owned, busy, templates) {
@@ -435,17 +441,27 @@
   // ------------------------------------------------------------------ lưu trữ
   function seedDb() {
     const d = clone(root.WUWA_DATA);
-    return { resonators: d.resonators, teams: d.teams, edited: false };
+    return { resonators: d.resonators, teams: d.teams, edited: false, scoreScale: SCORE_MAX };
   }
   function loadDb() {
     try {
       const raw = root.localStorage && localStorage.getItem(STORE_KEY);
-      if (raw) { const d = JSON.parse(raw); if (d && d.resonators && d.teams) return d; }
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d && d.resonators && d.teams) {
+          if (d.scoreScale !== SCORE_MAX) {           // chỉnh sửa lưu từ phiên bản cũ (thang 0–10) -> x10
+            d.teams.forEach(t => { t.score = r2(Number(t.score || 0) * 10); });
+            d.scoreScale = SCORE_MAX;
+          }
+          return d;
+        }
+      }
     } catch (e) { /* bỏ qua */ }
     return seedDb();
   }
   function saveDb(db) {
     db.edited = true;
+    db.scoreScale = SCORE_MAX;
     try { localStorage.setItem(STORE_KEY, JSON.stringify(db)); }
     catch (e) { throw new Error("Không lưu được vào trình duyệt (bị chặn localStorage?)"); }
   }
@@ -461,7 +477,7 @@
   const STATUSES = ["available", "upcoming", "debut", "rerun", "soon", "limited", "norerun"];
   const normStatus = v => STATUSES.includes(v) ? v : "available";
   // Potential -> điểm cộng/trừ vào điểm pull (người dùng tự chấm trong Admin). "" = chưa chấm = 0
-  root.POTENTIAL_POINTS = { "S+": 5, "S": 2, "A": 0, "B": -1, "C": -2, "D": -3, "E": -5, "F": -10 };
+  root.POTENTIAL_POINTS = { "S+": 50, "S": 20, "A": 0, "B": -10, "C": -20, "D": -30, "E": -50, "F": -100 };
   const normPotential = v => (v in root.POTENTIAL_POINTS) ? v : "";
   // dữ liệu cũ trong trình duyệt chưa có role/date/status/potential -> lấy từ data.js gốc theo slug
   let _seedMeta = null;
@@ -513,6 +529,7 @@
       score = parseFloat(data.score ?? 0);
       if (Number.isNaN(score)) throw 0;
     } catch (e) { fail("Dữ liệu team không hợp lệ"); }
+    if (score < 1 || score > SCORE_MAX) fail("Điểm team phải từ 1 đến 100");
     if (slots.length !== 3 || slots.some(s => !s.length)) fail("Team cần đủ 3 slot, mỗi slot ít nhất 1 nhân vật");
     if (slots.some(s => new Set(s).size !== s.length)) fail("Một slot không được có nhân vật trùng");
     const valid = new Set(db.resonators.map(r => r.id));
@@ -640,7 +657,7 @@
   function exportJson(db) {
     const res = Object.fromEntries(db.resonators.map(r => [r.id, r]));
     return {
-      version: 4,
+      version: 5, score_scale: SCORE_MAX,
       resonators: resView({ resonators: db.resonators }).map(r => ({ name: r.name, rarity: r.rarity, element: r.element, released: r.released, status: r.status, role: r.role, date: r.date, potential: r.potential })),
       teams: teamsView(db, false).map(t => ({
         name: t.name, score: t.score, tier: t.tier, patch: t.patch, kind: t.kind, team_type: t.team_type,
@@ -664,6 +681,7 @@
       }
     }
     const existing = new Set(db.teams.map(t => t.name + "|" + JSON.stringify(t.slots)));
+    const k = data.score_scale === SCORE_MAX ? 1 : 10;      // file backup cũ dùng thang 0–10
     let added = 0, skipped = 0;
     for (const t of data.teams || []) {
       let slots;
@@ -674,7 +692,7 @@
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({
         id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers),
-        pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: parseFloat(t.score || 0), tier: t.tier || "",
+        pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: Math.min(SCORE_MAX, r2(parseFloat(t.score || 0) * k)), tier: t.tier || "",
         patch: t.patch || "", kind: normKind(t.kind), team_type: t.team_type || "", notes: t.notes || "",
         active: t.active === 0 || t.active === false ? 0 : 1, source: t.source || "user",
       });
@@ -733,7 +751,7 @@
             const bst = boostedIds(t, mem);
             let pen = 0;
             for (const [id, idx] of base) pen += effIdx(idx, bst.has(id));
-            const sc = r2(Math.max(Number(t.score) - pen * RANK_PENALTY, 0.01));
+            const sc = r2(Math.max(Number(t.score) - pen * RANK_PENALTY, SCORE_MIN_EFF));
             if (!best || sc > best.sc) best = { t, sc, assign: assign.slice() };
             return;
           }
@@ -779,29 +797,33 @@
     const pool = buildPool(templates, universe);
 
     const base = solve(templates, caps, 3000, pool);
-    // nhân vật đang được dùng trong team alt (theo cách xếp tối ưu hiện tại)
+    // nhân vật đang được dùng trong team meta (theo cách xếp tối ưu hiện tại); DPS nào không nằm trong đây = đang chơi alt/chưa có chỗ
     const usedMeta = new Set();
     for (const c of base.picked) if ((tmap.get(c.tid) || {}).kind === "meta") c.ids.forEach(i => usedMeta.add(i));
     const ownedSet = new Set(caps.keys());
+
+    // "Nên pull" chỉ xét META team: team alt (chắp vá) không được dùng để gợi ý pull, kể cả khi đã có 2 mảnh ghép
+    const metaPool = pool.filter(c => (tmap.get(c.tid) || {}).kind === "meta");
+    const baseMeta = solve(templates, caps, 3000, metaPool);
     const perSim = Math.max(300, Math.min(1500, 15000 / Math.max(candidates.length, 1)));
     const results = [];
     for (const r of candidates) {
       const simCaps = new Map(caps); simCaps.set(r.id, 1);
-      const unlocked = pool.filter(c => c.ids.includes(r.id) && c.ids.every(i => simCaps.has(i)));
-      // không team nào mở khóa -> kết quả y hệt hiện tại, khỏi giải lại
-      const after = unlocked.length ? solve(templates, simCaps, perSim, pool)
-        : { picked: [], score: base.score, usable: base.usable };
-      const gain = r2(after.score - base.score);
+      const unlocked = metaPool.filter(c => c.ids.includes(r.id) && c.ids.every(i => simCaps.has(i)));
+      // không meta team nào mở khóa -> kết quả y hệt hiện tại, khỏi giải lại
+      const after = unlocked.length ? solve(templates, simCaps, perSim, metaPool)
+        : { picked: [], score: baseMeta.score, usable: baseMeta.usable };
+      const gain = r2(after.score - baseMeta.score);
       const newTeams = after.picked.filter(c => c.ids.includes(r.id));
       const potPts = root.POTENTIAL_POINTS[r.potential] || 0;
       const mb = metaBonusFor(r.id, templates, ownedSet, usedMeta);
       results.push({
-        id: r.id, name: r.name, gain, new_score: after.score,
+        id: r.id, name: r.name, gain, new_score: r2(base.score + gain),
         potential: r.potential, potential_pts: potPts,
         meta_bonus: mb.bonus,
-        meta: mb.bonus ? { team_id: mb.team.id, name: mb.team.name, dps: mb.dps, complete: mb.complete } : null,
+        meta: mb.bonus ? { team_id: mb.team.id, name: mb.team.name, dps: mb.dps, complete: mb.complete, self: mb.self } : null,
         pull: r2(gain + potPts + mb.bonus),
-        pairable: unlocked.length > 0 || mb.bonus > 0,    // ghép được ít nhất 1 team (hoặc ghép cặp meta) với nhân vật đang có
+        pairable: unlocked.length > 0 || mb.bonus > 0,    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
         unlocked: new Set(unlocked.map(c => c.tid)).size,
         best_unlocked: unlocked.reduce((m, c) => Math.max(m, c.score), 0),
         teams: newTeams.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,
@@ -839,7 +861,7 @@
 
   root.engineApi = engineApi;
   root.WuwaEngine = {
-    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS,
+    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS, metaBonusFor,
     hasLocalEdits, resetLocalEdits, loadDb, exportJson, ready,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.WuwaEngine;

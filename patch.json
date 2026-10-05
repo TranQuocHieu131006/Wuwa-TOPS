@@ -1,0 +1,14 @@
+{
+  "patches": [
+    
+    {
+      "version": "1.5.0",
+      "date": "2026-10-05 17:30",
+      "content": [
+        "Thêm lịch sử patch",
+        "Tách riêng hai panel team optimization và pull suggestion",
+        "Nên pull ai: chỉ tính meta team; DPS cũng được cộng điểm Meta khi đã có người còn lại trong cặp"
+      ]
+    }
+  ]
+}

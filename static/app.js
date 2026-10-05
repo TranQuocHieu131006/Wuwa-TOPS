@@ -83,7 +83,7 @@ function syncMode() {
   const mn = MODE_NAME[mode];
   const ob = document.getElementById("optimizeBtn"), pb = document.getElementById("pullBtn");
   if (ob && !ob.disabled) ob.textContent = `⚡ Xếp team cho ${mn}`;
-  if (pb && !pb.disabled) pb.textContent = `🎯 Nên pull ai cho ${mn}?`;
+  if (pb && !pb.disabled) pb.textContent = `🎯 Pull cho ${mn}`;
 }
 
 // ---------------------------------------------------------------- roster
@@ -169,6 +169,22 @@ function afterChange() {
   LS.save();
   renderRoster();
   refreshLayout();
+  refreshPull();
+}
+
+// panel "Nên pull" độc lập với panel "Xếp team": roster/chế độ đổi thì tính lại (gộp các lần bấm liên tiếp)
+let pullTimer = 0;
+function refreshPull() {
+  clearTimeout(pullTimer);
+  if (!hasPull) return;
+  if (!selected.size) { resetPullPanel(); return; }
+  pullTimer = setTimeout(() => runPull(true), 250);
+}
+function resetPullPanel() {
+  hasPull = false;
+  document.getElementById("pulls").innerHTML = '<p class="hint">Chọn Resonator rồi bấm nút để xem gợi ý.</p>';
+  document.getElementById("pullTitle").textContent = "3. Nên pull ai?";
+  document.getElementById("pullHint").textContent = "Gợi ý nhân vật nên pull nhất dựa trên roster bạn đã chọn.";
 }
 
 function payload() {
@@ -362,9 +378,6 @@ function sanitizeLayout() {
 }
 
 function syncBuilder() {
-  if (hasPull) return;
-  const res = document.getElementById("result");
-  if (selected.size || layout.length) res.classList.remove("hidden"); else res.classList.add("hidden");
   document.getElementById("incWrap").classList.toggle("hidden", !hasResult);
   document.getElementById("resultTitle").innerHTML = hasResult ? `2. Xếp team cho ${modeTag(mode)}` : "2. Xếp team (tự do)";
 }
@@ -503,11 +516,8 @@ async function runOptimize(silent = false) {
   try {
     const d = await api("/api/optimize", "POST", payload());
     hasResult = true;
-    hasPull = false;
     dirty = false;
-    document.getElementById("result").classList.remove("hidden");
     syncBuilder();
-    if (!silent) document.getElementById("pullResult").classList.add("hidden");
 
     lastD = d;
     layout = d.teams.map(t => ({
@@ -528,11 +538,11 @@ async function runOptimize(silent = false) {
       ? d.incomplete.map(incompleteCard).join("")
       : '<p class="hint">Không có gợi ý nào (hoặc không có nhân vật dư).</p>';
 
-    if (!silent) document.getElementById("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     toast(e.message, true);
   } finally {
     btn.disabled = false;
+    syncMode();
   }
 }
 
@@ -547,11 +557,8 @@ async function runPull(silent = false) {
   btn.textContent = "Đang tính…";
   try {
     const d = await api("/api/pull-advisor", "POST", payload());
-    document.getElementById("pullResult").classList.remove("hidden");
-    document.getElementById("result").classList.add("hidden");
-    hasResult = false;
     hasPull = true;
-    document.getElementById("pullTitle").innerHTML = `Nên pull nhân vật nào cho ${modeTag(mode)}?`;
+    document.getElementById("pullTitle").innerHTML = `3. Nên pull ai cho ${modeTag(mode)}?`;
     document.getElementById("pullHint").textContent =
       `Tính theo luật ${MODE_NAME[mode]}${mode === "matrix" ? " (mỗi nhân vật dùng tối đa ×2)" : " (mỗi nhân vật dùng 1 lần)"}. ` +
       `Xếp từ nên pull nhất xuống thấp dần.`;
@@ -567,14 +574,16 @@ async function runPull(silent = false) {
           ? `Mở khóa ${x.unlocked} team`
           : x.meta
             ? "Chưa mở khóa team mới ngay, nhưng ghép cặp được với nhân vật đang có trong meta team"
-            : "Chưa ghép được team nào với roster hiện tại — xuất hiện nhờ Potential";
+            : "Chưa ghép được meta team nào với roster hiện tại — xuất hiện nhờ Potential";
       return `<div class="pull">
         <div class="no">${i + 1}</div>
         ${faceHTML(r, { size: "lg" })}
         <div>
           <div class="nm">${esc(x.name)} ${r ? statusTag(r.status) : ""}</div>
           <div class="sub">${sub}</div>
-          ${x.meta ? `<div class="meta-note">⭐ Đưa ${x.meta.dps.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" / ")} từ team alt lên meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""} — ${x.meta.complete ? "đủ bộ meta" : "hoàn thành cặp, còn thiếu 1 người"}</div>` : ""}
+          ${x.meta ? `<div class="meta-note">⭐ ${x.meta.self
+            ? `Chính là DPS của meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""}`
+            : `Đưa ${x.meta.dps.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" / ")} từ team alt lên meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""}`} — ${x.meta.complete ? "đủ bộ meta" : "hoàn thành cặp, còn thiếu 1 người"}</div>` : ""}
           ${teams ? `<div class="mini-teams">${teams}</div>` : ""}
         </div>
       </div>`;
@@ -591,12 +600,11 @@ async function runPull(silent = false) {
     </div>`;
     document.getElementById("pulls").innerHTML =
       group("Ghép được với nhân vật hiện có",
-        "Roll nhân vật này sẽ lập thêm được team với các nhân vật bạn đang có (đã gồm cả nhân vật sắp ra mắt).",
-        pairable, "Chưa có nhân vật nào ghép được team với roster hiện tại.") +
+        "Chỉ tính META team (team alt chắp vá không được dùng để gợi ý pull): roll nhân vật này sẽ lập thêm được meta team hoặc ghép được cặp chuẩn với các nhân vật bạn đang có (đã gồm cả nhân vật sắp ra mắt).",
+        pairable, "Chưa có nhân vật nào ghép được meta team với roster hiện tại.") +
       group("Nhân vật tiềm năng",
-        "Chưa ghép được team nào với roster hiện tại, nhưng có Potential cao nên vẫn được gợi ý.",
+        "Chưa ghép được meta team nào với roster hiện tại, nhưng có Potential cao nên vẫn được gợi ý.",
         potential, "Không có nhân vật tiềm năng nào (chấm Potential trong Admin → bảng Resonator).");
-    if (!silent) document.getElementById("pullResult").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     toast(e.message, true);
   } finally {
@@ -612,8 +620,8 @@ document.querySelectorAll("#modeSeg button").forEach(b => b.addEventListener("cl
   syncMode();
   LS.save();
   renderRoster();
-  if (hasPull) runPull(true);
-  else refreshLayout();
+  refreshLayout();
+  refreshPull();
 }));
 document.getElementById("search").addEventListener("input", renderRoster);
 document.getElementById("onlySel").addEventListener("change", renderRoster);
