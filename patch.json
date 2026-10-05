@@ -1,6 +1,12 @@
 {
   "patches": [
-    
+    {
+      "version": "1.5.1",
+      "date": "2026-10-05 18:11",
+      "content": [
+        "Thêm resize panel pull và xếp"
+      ]
+    },
     {
       "version": "1.5.0",
       "date": "2026-10-05 17:30",
