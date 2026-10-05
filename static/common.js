@@ -14,7 +14,7 @@ const STATUS_ORDER = ["available", "upcoming", "debut", "rerun", "soon", "limite
 const STATUS_META = {
   available: { label: "Đã ra mắt",       tag: "",            color: "#8d9ab8" },
   upcoming:  { label: "Sắp ra mắt",      tag: "Sắp ra",     color: "#f3c76b" },
-  debut:     { label: "Debut",           tag: "Debut",      color: "#d5dbe8" },
+  debut:     { label: "Debut",           tag: "Debut",      color: "#5fd9a0" },
   rerun:     { label: "Rerun",      tag: "Rerun",  color: "#5fd9a0" },
   soon:      { label: "Incoming",       tag: "Incoming",   color: "#ffa24d" },
   limited:   { label: "Đã limited",      tag: "LIMITED",     color: "#ff6b7a" },

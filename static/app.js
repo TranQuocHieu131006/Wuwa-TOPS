@@ -625,6 +625,15 @@ document.getElementById("selAll").addEventListener("click", () => {
 });
   afterChange();
 });
+// chọn tất cả nhân vật 4★ hữu dụng: 4★, đã ra mắt, đã chấm Potential và khác hạng F (không phụ thuộc bộ lọc đang bật)
+document.getElementById("selUseful4").addEventListener("click", () => {
+  resonators.forEach(r => {
+    if (r.rarity !== "4★" || !r.released) return;
+    if (!r.potential || r.potential === "F") return;
+    selected.add(r.id);
+  });
+  afterChange();
+});
 document.getElementById("clearAll").addEventListener("click", () => {
   if (selected.size && !confirm("Bỏ chọn tất cả nhân vật?")) return;
   selected.clear(); extra.clear();

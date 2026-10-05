@@ -313,7 +313,7 @@ body.locked .admin-grid, body.locked #localBanner { display: none; }
 .hidden { display: none !important; }
 
 /* ---------- nút chọn tất cả / bỏ chọn hết nằm ngang hàng + nút sắp xếp ---------- */
-.btn-pair { display: inline-flex; flex-wrap: nowrap; gap: 8px; align-items: center; }
+.btn-pair { display: inline-flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .btn-pair button { white-space: nowrap; }
 .seg.small button { padding: 5px 12px; font-size: 13px; white-space: nowrap; }
 
@@ -346,12 +346,12 @@ body.locked .admin-grid, body.locked #localBanner { display: none; }
 .st-tag { display: inline-block; font-size: 9.5px; font-weight: 800; line-height: 15px; padding: 0 6px; border-radius: 6px;
   white-space: nowrap; border: 1px solid transparent; letter-spacing: .2px; }
 .st-upcoming { background: #3a2f12; color: #f3c76b; border-color: #5a4a2c; }      /* vàng */
-.st-debut    { background: #2a2f3a; color: #e3e8f2; border-color: #aab3c7; }      /* trắng bạc */
+.st-debut    { background: #2a2f3a; color: #5fd9a0; border-color: #2a6b52; }      /* trắng bạc */
 .st-rerun    { background: #12362a; color: #5fd9a0; border-color: #2a6b52; }      /* xanh lá */
 .st-soon     { background: #3b2812; color: #ffa24d; border-color: #6b4a22; }      /* cam */
 .st-limited  { background: #3d1d24; color: #ff6b7a; border-color: #8a3040; }      /* đỏ */
 .st-norerun  { background: #4a1620; color: #ff8a98; border-color: #a02a3c; }      /* đỏ đậm */
-select.st-sel.st-upcoming { color: #f3c76b; } select.st-sel.st-debut { color: #d5dbe8; } select.st-sel.st-rerun { color: #5fd9a0; }
+select.st-sel.st-upcoming { color: #f3c76b; } select.st-sel.st-debut { color: #5fd9a0; } select.st-sel.st-rerun { color: #5fd9a0; }
 select.st-sel.st-soon { color: #ffa24d; } select.st-sel.st-limited { color: #ff6b7a; } select.st-sel.st-norerun { color: #ff8a98; }
 
 /* ---------- Potential ---------- */
@@ -501,15 +501,14 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 /* ---------- Admin: chế độ Pro (Thêm team một bên, Database một bên) ---------- */
 @media (min-width: 1024px) {
   body.layout-pro main#adminGrid { max-width: none; padding: 0 16px; margin-bottom: 70px; }
-  body.layout-pro .admin-grid { grid-template-columns: var(--left-w, 480px) 14px minmax(0, 1fr); align-items: start; gap: 0; }
+  body.layout-pro .admin-grid { grid-template-columns: 480px minmax(0, 1fr); align-items: start; gap: 14px; }
   body.layout-pro #formPanel,
-  body.layout-pro #dbCol,
-  body.layout-pro .splitter {
+  body.layout-pro #dbCol {
     position: sticky; top: 84px;
     max-height: calc(100vh - 100px); overflow-y: auto; overscroll-behavior: contain;
     scrollbar-width: thin;
   }
-  body.layout-pro #formPanel { margin-bottom: 0; }
+  body.layout-pro #formPanel { margin-bottom: 0; max-height: calc(100vh - 180px); }   /* đáy panel Thêm team mặc định cao hơn để taskbar không che */
   body.layout-pro #dbCol .panel:last-child { margin-bottom: 0; }
   body.layout-pro #formPanel, body.layout-pro #dbCol { z-index: 1; }
   /* form hẹp hơn nên slot xếp dọc */
@@ -517,32 +516,15 @@ select.pot.Pp option { color: var(--text); background: var(--panel); }
 }
 
 /* ---------- thanh kéo đổi kích thước ---------- */
-.splitter { display: none; }
-@media (min-width: 1024px) {
-  body.layout-pro .splitter {
-    display: block; height: calc(100vh - 100px); cursor: col-resize; touch-action: none; position: sticky;
-  }
-  body.layout-pro .splitter::before {
-    content: ""; position: absolute; left: 5px; top: 0; bottom: 0; width: 4px; border-radius: 4px;
-    background: var(--line); transition: background .15s;
-  }
-  body.layout-pro .splitter::after {
-    content: "⋮"; position: absolute; top: 50%; left: 0; right: 0; text-align: center;
-    transform: translateY(-50%); color: var(--muted); font-weight: 800; letter-spacing: 0; pointer-events: none;
-  }
-  body.layout-pro .splitter:hover::before, .splitter.dragging::before { background: var(--accent); }
-}
 .panel-grip {
   height: 10px; width: 90px; margin: -16px auto 10px; border-radius: 6px; background: var(--line);
   cursor: ns-resize; position: relative; z-index: 2; touch-action: none; transition: background .15s;
 }
 .panel-grip::after { content: ""; position: absolute; left: 30px; right: 30px; top: 4px; height: 2px; border-radius: 2px; background: var(--muted); opacity: .7; }
 .panel-grip:hover, .panel-grip.dragging { background: var(--accent); }
-.panel.collapsed + .panel-grip { display: none; }
 .panel.sized { height: var(--sz-h); overflow-y: auto; scrollbar-width: thin; }
 .panel.sized.collapsed { height: auto; overflow: visible; }
 @media (min-width: 1024px) { body.layout-pro #formPanel.sized { max-height: none; } }
 body.resizing { user-select: none; }
 body.resizing.rz-v { cursor: ns-resize; }
-body.resizing.rz-h { cursor: col-resize; }
 .panel-grip.inside { position: sticky; bottom: -14px; margin: 10px auto -14px; }

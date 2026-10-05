@@ -472,17 +472,15 @@ document.querySelectorAll("#layoutSeg button").forEach(b => b.addEventListener("
 try { setLayout(localStorage.getItem(LAYOUT_KEY) === "pro" ? "pro" : "default"); } catch (e) { setLayout("default"); }
 
 // ------------------------------------------------------------ kéo thả đổi kích thước
-// - Thanh dọc giữa 2 cột (chỉ ở chế độ Pro): đổi độ rộng cột Thêm team (cột phải tự co giãn theo).
-// - Vệt dưới mỗi panel: kéo để đổi chiều cao. Các panel bên phải (Meta / Alt / Resonator) dùng CHUNG một
-//   chiều cao: kéo một cái là cả ba cùng đổi. Panel Thêm team có chiều cao riêng. Bấm đúp vệt để về tự động.
+// Chỉ còn vệt dưới panel Thêm team: kéo để đổi chiều cao, bấm đúp để về tự động.
+// (Các panel bên phải dùng nút +/− để thu gọn; thanh kéo độ rộng giữa 2 cột đã bỏ.)
 const SIZE_KEY = "wuwa.admin.sizes";
 const sizes = readJSON(SIZE_KEY, {});
 const saveSizes = () => { try { localStorage.setItem(SIZE_KEY, JSON.stringify(sizes)); } catch (e) { /* bỏ qua */ } };
-const RIGHT_IDS = ["metaPanel", "altPanel", "resPanel"];
 const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
 function applyHeight(group, h) {                      // group: "right" | "form"; h = null -> tự động
-  const ids = group === "right" ? RIGHT_IDS : ["formPanel"];
+  const ids = ["formPanel"];
   ids.forEach(id => {
     const p = document.getElementById(id);
     if (!p) return;
@@ -512,35 +510,21 @@ function dragStart(e, axis, onMove, onDone, el) {
   el.addEventListener("pointercancel", up);
 }
 
-[["formPanel", "form"], ...RIGHT_IDS.map(id => [id, "right"])].forEach(([id, group]) => {
+[["formPanel", "form"]].forEach(([id, group]) => {
   const p = document.getElementById(id);
   if (!p) return;
   const grip = document.createElement("div");
   grip.className = "panel-grip";
-  grip.title = group === "right" ? "Kéo để đổi chiều cao (Meta / Alt / Resonator cùng đổi) · bấm đúp để về tự động" : "Kéo để đổi chiều cao · bấm đúp để về tự động";
-  if (group === "form") { grip.classList.add("inside"); p.appendChild(grip); }   // nằm trong panel (dính đáy) để không phá lưới 2 cột
-  else p.after(grip);
+  grip.title = "Kéo để đổi chiều cao · bấm đúp để về tự động";
+  grip.classList.add("inside"); p.appendChild(grip);   // nằm trong panel (dính đáy) để không phá lưới 2 cột
   grip.addEventListener("pointerdown", e => {
     const y0 = e.clientY, h0 = p.getBoundingClientRect().height;
     dragStart(e, "v", ev => applyHeight(group, clamp(h0 + ev.clientY - y0, 120, 2400)), null, grip);
   });
   grip.addEventListener("dblclick", () => applyHeight(group, null));
 });
-Object.keys(sizes).forEach(g => { if ((g === "right" || g === "form") && sizes[g] > 0) applyHeight(g, sizes[g]); });
-
-const splitter = document.getElementById("splitter");
-const grid = document.getElementById("adminGrid");
-function applyLeftWidth(w) {
-  if (w === null) { grid.style.removeProperty("--left-w"); delete sizes.leftW; }
-  else { grid.style.setProperty("--left-w", w + "px"); sizes.leftW = Math.round(w); }
-  saveSizes();
-}
-splitter.addEventListener("pointerdown", e => {
-  const x0 = e.clientX, w0 = document.getElementById("formPanel").getBoundingClientRect().width;
-  const total = grid.getBoundingClientRect().width;
-  dragStart(e, "h", ev => applyLeftWidth(clamp(w0 + ev.clientX - x0, 300, total - 14 - 360)), null, splitter);
-});
-splitter.addEventListener("dblclick", () => applyLeftWidth(null));
-if (sizes.leftW > 0) applyLeftWidth(sizes.leftW);
+if (sizes.form > 0) applyHeight("form", sizes.form);
+// dọn kích thước cũ của các thanh kéo đã bỏ
+if ("right" in sizes || "leftW" in sizes) { delete sizes.right; delete sizes.leftW; saveSizes(); }
 
 load();
