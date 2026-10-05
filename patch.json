@@ -1,6 +1,13 @@
 {
   "patches": [
     {
+      "version": "1.5.2",
+      "date": "2026-10-05 19:48",
+      "content": [
+        "Thay đổi cơ chế pull. Thay đổi data"
+      ]
+    },
+    {
       "version": "1.5.1",
       "date": "2026-10-05 18:11",
       "content": [
