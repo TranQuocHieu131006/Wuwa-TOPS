@@ -667,4 +667,74 @@ document.getElementById("exportBtn").addEventListener("click", showPreview);
 document.getElementById("optimizeBtn").addEventListener("click", () => runOptimize(false));
 document.getElementById("pullBtn").addEventListener("click", () => runPull(false));
 
+// ---------------------------------------------------------------- kéo thả đổi độ rộng 2 panel Xếp team / Nên pull
+// - Thanh giữa 2 panel: đổi tỉ lệ rộng của Xếp team ↔ Nên pull.
+// - 2 mép ngoài: kéo ra để nới cả cụm vượt khỏi khung Resonator (nới đối xứng 2 bên), kéo vào để thu lại.
+// - Nhấp đúp vào thanh/mép để về mặc định. Lưu trong trình duyệt.
+(function initWorkResize() {
+  const grid = document.querySelector(".work-grid");
+  const split = document.getElementById("workSplit");
+  const resultEl = document.getElementById("result");
+  if (!grid || !split || !resultEl) return;
+  const KEY = "wuwa.work.layout.v1", GAP = 20, MIN_RES = 480, MIN_PULL = 300, MIN_W = 820, DEF_SPLIT = 0.7;
+  const mq = window.matchMedia("(min-width: 1100px)");
+  const st = { w: null, split: DEF_SPLIT };
+  try {
+    const o = JSON.parse(localStorage.getItem(KEY) || "{}");
+    if (o && +o.w > 0) st.w = +o.w;
+    if (o && +o.split > 0.05 && +o.split < 0.95) st.split = +o.split;
+  } catch (e) { /* bỏ qua */ }
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* bỏ qua */ } };
+  const maxW = () => document.documentElement.clientWidth - 24;
+  const frameW = () => { const m = grid.parentElement, cs = getComputedStyle(m); return m.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); };
+  const clampW = w => Math.max(MIN_W, Math.min(w, maxW()));
+  const clampSplit = (r, w) => { const av = w - GAP; return Math.max(MIN_RES, Math.min(r, av - MIN_PULL)) / av; };
+
+  function apply() {
+    if (!mq.matches) { grid.style.width = grid.style.marginLeft = grid.style.gridTemplateColumns = ""; return; }
+    const fw = frameW();
+    const custom = st.w != null;
+    const w = custom ? clampW(st.w) : fw;
+    grid.style.width = custom ? w + "px" : "";
+    grid.style.marginLeft = custom ? (fw - w) / 2 + "px" : "";            // giữ cụm căn giữa, tràn đều 2 bên
+    if (custom || Math.abs(st.split - DEF_SPLIT) > 1e-6) {
+      const r = clampSplit((w - GAP) * st.split, w);
+      grid.style.gridTemplateColumns = `minmax(0, ${r}fr) ${GAP}px minmax(0, ${1 - r}fr)`;
+    } else grid.style.gridTemplateColumns = "";
+  }
+
+  function makeDrag(el, onMove, onReset) {
+    el.addEventListener("dblclick", () => { onReset(); save(); apply(); });
+    el.addEventListener("pointerdown", e => {
+      if (!mq.matches || (e.pointerType === "mouse" && e.button !== 0)) return;
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      const x0 = e.clientX, w0 = grid.getBoundingClientRect().width, r0 = resultEl.getBoundingClientRect().width;
+      document.body.classList.add("resizing-h"); el.classList.add("on");
+      const mv = ev => { onMove(ev.clientX - x0, w0, r0); apply(); };
+      const up = () => {
+        el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
+        document.body.classList.remove("resizing-h"); el.classList.remove("on"); save();
+      };
+      el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
+    });
+  }
+
+  makeDrag(split,
+    (dx, w0, r0) => { st.w = st.w == null && Math.abs(w0 - frameW()) < 1 ? null : clampW(w0); st.split = clampSplit(r0 + dx, w0); },
+    () => { st.split = DEF_SPLIT; });
+  for (const side of ["l", "r"]) {
+    const edge = document.createElement("div");
+    edge.className = "work-edge " + side;
+    edge.title = "Kéo để nới / thu rộng 2 panel ra ngoài khung · nhấp đúp để về mặc định";
+    grid.appendChild(edge);
+    makeDrag(edge,
+      (dx, w0) => { st.w = clampW(w0 + (side === "r" ? 2 * dx : -2 * dx)); },
+      () => { st.w = null; });
+  }
+  window.addEventListener("resize", apply);
+  mq.addEventListener("change", apply);
+  apply();
+})();
+
 load();
