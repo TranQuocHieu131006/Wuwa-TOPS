@@ -6,7 +6,7 @@
 
   const SCORE_MAX = 100;     // thang điểm 1–100
   const SCORE_MIN_EFF = 0.1; // điểm sàn sau khi trừ bậc (team vẫn được tính)
-  const RANK_PENALTY = 5;    // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 5 điểm; cùng bậc thì không trừ
+  const RANK_PENALTY = 0.5;  // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 0.5 điểm; cùng bậc thì không trừ
   const SLOT_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
   const LEGACY_MAX = 3;     // dữ liệu cũ chưa có "tiers": suy ra từ vị trí, tối đa tới C (như trước đây)
   const tierIdx = v => { const i = SLOT_TIERS.indexOf(String(v || "").toUpperCase()); return i < 0 ? 0 : i; };
@@ -86,12 +86,33 @@
       }
     return false;
   }
+  // o (bất kỳ vai trò nào: DPS hay support) đã có người xích khác (khác x) đang sở hữu, ở một cặp khác?
+  function dpsAlreadyChained(o, x, pair, templates, owned) {
+    for (const t of templates) {
+      if (t.kind !== "meta") continue;
+      for (const p of t.pairs || []) {
+        if (p === pair || !p.includes(o) || p.includes(x)) continue;
+        if (p.some(y => y !== o && owned.has(y))) return true;
+      }
+    }
+    return false;
+  }
   // trả về { bonus, team, dps, complete, self } tốt nhất cho nhân vật x (chưa sở hữu); bonus = 0 nếu không có
   //  - x là support/sub trong cặp: cần có DPS (slot 1) của team meta đó đang phải chơi trong team alt  -> self=false
   //  - x chính là DPS (slot 1) của team meta: x chưa có nên không có chuyện "đang chơi alt"; chỉ cần
   //    người còn lại trong cặp đã có (đối xứng với trường hợp trên)                                    -> self=true
   function metaBonusFor(x, templates, owned, usedMeta) {
-    let best = { bonus: 0 };
+    let best = { bonus: 0 }, redundant = false, freeLink = false;
+    // xét độc lập với điều kiện DPS bên dưới: mọi cặp meta của x có người đang sở hữu
+    for (const t of templates) {
+      if (t.kind !== "meta") continue;
+      for (const pair of t.pairs || []) {
+        if (!pair.includes(x)) continue;
+        const have = pair.filter(i => i !== x && owned.has(i));
+        if (!have.length) continue;
+        if (have.some(o => dpsAlreadyChained(o, x, pair, templates, owned))) redundant = true; else freeLink = true;
+      }
+    }
     for (const t of templates) {
       if (t.kind !== "meta" || !t.slots.some(s => s.includes(x))) continue;
       const self = t.slots[0].includes(x);
@@ -103,12 +124,16 @@
         const others = pair.filter(i => i !== x);
         const have = others.filter(i => owned.has(i));
         if (!have.length) continue;                                  // chưa có ai trong cặp -> không cộng
+        // A xích với B và C (A, B, C là DPS hay support đều như nhau): nếu A đã có sẵn người xích khác (B) rồi thì không cộng điểm xích cho C nữa
+        if (have.some(o => dpsAlreadyChained(o, x, pair, templates, owned))) continue;
         let bonus = 0, complete = false;
         if (pair.length === 3) { complete = have.length === 2; bonus = complete ? META_FULL : META_PAIR; }
         else if (have.length === 1) { complete = pairHasC(t, pair, owned); bonus = complete ? META_FULL : META_PAIR; }
         if (bonus > best.bonus) best = { bonus, team: t, dps, complete, self };
       }
     }
+    // redundant = x chỉ xích được với người đã có người xích khác rồi -> không cần pull x nữa
+    if (!best.bonus && redundant && !freeLink) best.redundant = true;
     return best;
   }
 
@@ -706,7 +731,8 @@
     const db = loadDb();
     const valid = new Set(db.resonators.map(r => r.id));
     const caps = buildCaps(data.owned || [], data.duplicates || [], valid);
-    const templates = teamsView(db, true);
+    // Xếp team chỉ lấy điểm từ team ALT; team META dành riêng cho "Nên pull ai?"
+    const templates = teamsView(db, true).filter(t => t.kind === "alt");
     const tmap = new Map(templates.map(t => [t.id, t]));
     const mt = Math.floor(Number(data.max_teams));
     const maxTeams = Number.isFinite(mt) && mt >= 1 ? mt : null;     // rỗng / không hợp lệ = không giới hạn
@@ -817,6 +843,7 @@
       const newTeams = after.picked.filter(c => c.ids.includes(r.id));
       const potPts = root.POTENTIAL_POINTS[r.potential] || 0;
       const mb = metaBonusFor(r.id, templates, ownedSet, usedMeta);
+      if (mb.redundant) continue;     // A đã xích với B (đang có) rồi -> không gợi ý pull C nữa
       results.push({
         id: r.id, name: r.name, gain, new_score: r2(base.score + gain),
         potential: r.potential, potential_pts: potPts,

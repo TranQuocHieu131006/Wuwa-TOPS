@@ -150,7 +150,7 @@ function renderSlots() {
           <div class="slot-chip">
             ${faceHTML(byId[id], { size: "sm" })}
             <span class="grow">${esc(byId[id]?.name || "?")}${pairBadge(id)}</span>
-            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 5 điểm)">
+            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 0.5 điểm)">
               ${TIER_LIST.map(t => `<option value="${t}" ${t === (slotTiers[si][k] || "S") ? "selected" : ""}>${t}</option>`).join("")}
             </select>
             <button type="button" class="danger" data-act="del" data-s="${si}" data-k="${k}">✕</button>
