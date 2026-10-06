@@ -844,16 +844,18 @@
         : { picked: [], score: baseMeta.score, usable: baseMeta.usable };
       const gain = r2(after.score - baseMeta.score);
       const newTeams = after.picked.filter(c => c.ids.includes(r.id));
-      const potPts = root.POTENTIAL_POINTS[r.potential] || 0;
       const mb = metaBonusFor(r.id, templates, ownedSet, usedMeta);
       if (mb.redundant) continue;     // A đã xích với B (đang có) rồi -> không gợi ý pull C nữa
+      const pairable = unlocked.length > 0 || mb.bonus > 0;    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
+      // Potential chỉ cộng cho nhóm "Nhân vật tiềm năng" (không ghép được); nhóm ghép được thì không cộng Potential
+      const potPts = pairable ? 0 : (root.POTENTIAL_POINTS[r.potential] || 0);
       results.push({
         id: r.id, name: r.name, gain, new_score: r2(base.score + gain),
         potential: r.potential, potential_pts: potPts,
         meta_bonus: mb.bonus,
         meta: mb.bonus ? { team_id: mb.team.id, name: mb.team.name, dps: mb.dps, complete: mb.complete, self: mb.self } : null,
         pull: r2(gain + potPts + mb.bonus),
-        pairable: unlocked.length > 0 || mb.bonus > 0,    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
+        pairable,
         unlocked: new Set(unlocked.map(c => c.tid)).size,
         best_unlocked: unlocked.reduce((m, c) => Math.max(m, c.score), 0),
         teams: newTeams.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,

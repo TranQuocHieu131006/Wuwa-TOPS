@@ -4,13 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=21">
+<link rel="stylesheet" href="static/style.css?v=22">
 </head>
 <body>
 <header class="top">
-  <div>
-    <h1>WuWa <span>Account Optimizer</span></h1>
-    <p>Chọn Resonator đang có → xếp team tối ưu → biết nên roll ai tiếp theo.</p>
+  <div class="head-left">
+    <div class="seg" id="modeSeg">
+      <button data-mode="toa" class="active">ToA</button>
+      <button data-mode="matrix">Matrix</button>
+    </div>
+    <div>
+      <h1>WuWa <span>Account Optimizer</span></h1>
+      <p>Chọn Resonator đang có → xếp team tối ưu → biết nên roll ai tiếp theo.</p>
+    </div>
   </div>
   <div class="nav-group"><button type="button" class="nav-link patch-btn" id="patchBtn" title="Lịch sử cập nhật">📢 Cập nhật<span class="dot hidden" aria-label="Có cập nhật mới"></span></button><a class="nav-link" href="admin.html">⚙ Dữ liệu team / Admin</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
 </header>
@@ -21,10 +27,6 @@
       <div>
         <h2>1. Resonator của bạn</h2>
         <p class="hint" id="modeHint"></p>
-      </div>
-      <div class="seg" id="modeSeg">
-        <button data-mode="toa" class="active">ToA</button>
-        <button data-mode="matrix">Matrix</button>
       </div>
     </div>
 
@@ -103,8 +105,8 @@
 
 <script src="static/vendor/highs.js"></script>
 <script src="static/data.js?v=8"></script>
-<script src="static/engine.js?v=101"></script>
-<script src="static/common.js?v=9"></script>
+<script src="static/engine.js?v=102"></script>
+<script src="static/common.js?v=10"></script>
 <script src="static/patch.js?v=1"></script>
 <script src="static/app.js?v=20"></script>
 </body>

@@ -37,7 +37,7 @@ function potLegendHTML() {
   return `<div class="pot-legend"><b>Potential → điểm pull:</b>
     ${POTENTIALS.map(p => `<span class="${potCls(p)}">${esc(p)} = ${fmtSigned(POTENTIAL_POINTS[p])}</span>`).join("")}
     <span class="pot P0">chưa chấm = 0</span>
-    <div class="hint">Điểm pull = mức tăng tổng điểm team khi có thêm nhân vật đó + điểm Potential. Potential là đánh giá tiềm năng của riêng bạn, chấm trong Admin → bảng Resonator; chỉ ảnh hưởng gợi ý “Nên pull ai?”, không ảnh hưởng việc xếp team.</div>
+    <div class="hint">Điểm pull của nhân vật ghép được với roster = mức tăng tổng điểm team (không cộng Potential); Potential chỉ được cộng cho nhóm “Nhân vật tiềm năng” (chưa ghép được meta team nào). Potential là đánh giá tiềm năng của riêng bạn, chấm trong Admin → bảng Resonator; chỉ ảnh hưởng gợi ý “Nên pull ai?”, không ảnh hưởng việc xếp team.</div>
   </div>`;
 }
 

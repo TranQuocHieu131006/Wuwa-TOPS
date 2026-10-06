@@ -53,6 +53,8 @@ header.top p { margin: 2px 0 0; font-size: 13px; }
   padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel);
 }
 .nav-link:hover { border-color: var(--accent); }
+.head-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.head-left .seg { flex: 0 0 auto; }
 .nav-group { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .nav-link.guide { border-color: var(--accent); font-weight: 700; }
 
@@ -295,6 +297,7 @@ tr.off td { opacity: .45; }
 
 @media (max-width: 720px) {
   header.top { flex-direction: column; align-items: flex-start; }
+  .head-left { flex-direction: column; align-items: flex-start; gap: 10px; }
   .pull { grid-template-columns: 26px 56px 1fr; }
   .pull .gain { grid-column: 1 / -1; text-align: left; }
   .roster { grid-template-columns: repeat(auto-fill, minmax(94px, 1fr)); }
