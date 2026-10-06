@@ -86,54 +86,51 @@
       }
     return false;
   }
-  // o (bất kỳ vai trò nào: DPS hay support) đã có người xích khác (khác x) đang sở hữu, ở một cặp khác?
+  const pairKey = p => p.slice().sort((a,b)=>a-b).join(",");
+  function normFocusedPairs(slots, pairs, focused) {
+    const keys = new Set((pairs || []).map(pairKey));
+    return normPairs(slots,focused || []).filter(p => keys.has(pairKey(p)) && p.some(id=>slots[0].includes(id)));
+  }
+  const focusedPair = (t,p) => (t.focused_pairs || []).some(f=>pairKey(f)===pairKey(p));
+  // An already fulfilled alternative link can suppress another ordinary link.
+  // Merely owning one member of an unfinished triple does not fulfill that triple.
   function dpsAlreadyChained(o, x, pair, templates, owned) {
-    for (const t of templates) {
-      if (t.kind !== "meta") continue;
-      for (const p of t.pairs || []) {
-        if (p === pair || !p.includes(o) || p.includes(x)) continue;
-        if (p.some(y => y !== o && owned.has(y))) return true;
+    for(const t of templates) {
+      if(t.kind!=="meta" || !t.active) continue;
+      for(const p of t.pairs || []) {
+        if(pairKey(p)===pairKey(pair) || !p.includes(o) || p.includes(x)) continue;
+        if(p.every(id=>id===o || owned.has(id))) return true;
       }
     }
     return false;
   }
-  // trả về { bonus, team, dps, complete, self } tốt nhất cho nhân vật x (chưa sở hữu); bonus = 0 nếu không có
-  //  - x là support/sub trong cặp: cần có DPS (slot 1) của team meta đó đang phải chơi trong team alt  -> self=false
-  //  - x chính là DPS (slot 1) của team meta: x chưa có nên không có chuyện "đang chơi alt"; chỉ cần
-  //    người còn lại trong cặp đã có (đối xứng với trường hợp trên)                                    -> self=true
-  function metaBonusFor(x, templates, owned, usedMeta) {
-    let best = { bonus: 0 }, redundant = false, freeLink = false;
-    // xét độc lập với điều kiện DPS bên dưới: mọi cặp meta của x có người đang sở hữu
-    for (const t of templates) {
-      if (t.kind !== "meta") continue;
-      for (const pair of t.pairs || []) {
-        if (!pair.includes(x)) continue;
-        const have = pair.filter(i => i !== x && owned.has(i));
-        if (!have.length) continue;
-        if (have.some(o => dpsAlreadyChained(o, x, pair, templates, owned))) redundant = true; else freeLink = true;
+  function linkAllowed(t,pair,x,templates,owned) {
+    // Completing a declared THREE-person link takes precedence over direction and redundancy.
+    if(pair.length===3 && pair.filter(id=>id!==x).every(id=>owned.has(id))) return true;
+    if(focusedPair(t,pair)) return t.slots[0].includes(x);
+    const have=pair.filter(id=>id!==x && owned.has(id));
+    return !have.some(o=>dpsAlreadyChained(o,x,pair,templates,owned));
+  }
+  function allowsPull(t,x,owned=new Set(),templates=[t]) {
+    const links=(t.pairs || []).filter(p=>p.includes(x));
+    return !links.length || links.some(pair=>linkAllowed(t,pair,x,templates,owned));
+  }
+  function metaBonusFor(x,templates,owned) {
+    let best={bonus:0}, blocked=false;
+    for(const t of templates) {
+      if(t.kind!=="meta" || !t.active) continue;
+      const self=t.slots[0].includes(x);
+      for(const pair of t.pairs || []) {
+        if(!pair.includes(x)) continue;
+        const have=pair.filter(id=>id!==x && owned.has(id));
+        if(!have.length) continue;
+        if(!linkAllowed(t,pair,x,templates,owned)) {blocked=true;continue;}
+        const complete=pair.length===3 ? have.length===2 : pairHasC(t,pair,owned);
+        const bonus=complete ? META_FULL : META_PAIR;
+        if(bonus>best.bonus) best={bonus,team:t,dps:self ? [] : t.slots[0].filter(id=>owned.has(id)),complete,self};
       }
     }
-    for (const t of templates) {
-      if (t.kind !== "meta" || !t.slots.some(s => s.includes(x))) continue;
-      const self = t.slots[0].includes(x);
-      // DPS (slot 1) của team meta này đang được dùng trong team alt
-      const dps = self ? [] : t.slots[0].filter(i => i !== x && owned.has(i) && !usedMeta.has(i));
-      if (!self && !dps.length) continue;
-      for (const pair of t.pairs || []) {
-        if (!pair.includes(x)) continue;
-        const others = pair.filter(i => i !== x);
-        const have = others.filter(i => owned.has(i));
-        if (!have.length) continue;                                  // chưa có ai trong cặp -> không cộng
-        // A xích với B và C (A, B, C là DPS hay support đều như nhau): nếu A đã có sẵn người xích khác (B) rồi thì không cộng điểm xích cho C nữa
-        if (have.some(o => dpsAlreadyChained(o, x, pair, templates, owned))) continue;
-        let bonus = 0, complete = false;
-        if (pair.length === 3) { complete = have.length === 2; bonus = complete ? META_FULL : META_PAIR; }
-        else if (have.length === 1) { complete = pairHasC(t, pair, owned); bonus = complete ? META_FULL : META_PAIR; }
-        if (bonus > best.bonus) best = { bonus, team: t, dps, complete, self };
-      }
-    }
-    // redundant = x chỉ xích được với người đã có người xích khác rồi -> không cần pull x nữa
-    if (!best.bonus && redundant && !freeLink) best.redundant = true;
+    if(!best.bonus && blocked) best.redundant=true;
     return best;
   }
 
@@ -565,7 +562,7 @@
     // Team có thể thiếu slot, miễn là có ít nhất 2 nhân vật.
     // Các team đủ 3 nhân vật vẫn giữ nguyên logic cũ; team thiếu người chỉ dùng được ở các chức năng hỗ trợ team chưa hoàn chỉnh.
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, focused_pairs: normFocusedPairs(slots,pairs,data.focused_pairs), score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -676,7 +673,7 @@
     db.teams = db.teams.filter(t => t.source !== "prydwen");
     for (const t of seed.teams) {
       db.teams.push({ ...t, id: nextId(db.teams), slots: t.slots.map(s => s.map(id => n2i[seedName[id]])),
-        pairs: (t.pairs || []).map(pr => pr.map(id => n2i[seedName[id]])), source: "prydwen" });
+        pairs: (t.pairs || []).map(pr => pr.map(id => n2i[seedName[id]])), focused_pairs: (t.focused_pairs || []).map(pr => pr.map(id=>n2i[seedName[id]])), source: "prydwen" });
     }
     saveDb(db);
     return { ok: true, count: seed.teams.length };
@@ -685,13 +682,14 @@
   function exportJson(db) {
     const res = Object.fromEntries(db.resonators.map(r => [r.id, r]));
     return {
-      version: 5, score_scale: SCORE_MAX,
+      version: 6, score_scale: SCORE_MAX,
       resonators: resView({ resonators: db.resonators }).map(r => ({ name: r.name, rarity: r.rarity, element: r.element, released: r.released, status: r.status, role: r.role, date: r.date, potential: r.potential })),
       teams: teamsView(db, false).map(t => ({
         name: t.name, score: t.score, tier: t.tier, patch: t.patch, kind: t.kind, team_type: t.team_type,
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
         tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
+        focused_pairs: (t.focused_pairs || []).filter(pr=>pr.every(i=>res[i])).map(pr=>pr.map(i=>res[i].name)),
         pairs: (t.pairs || []).filter(pr => pr.every(i => res[i])).map(pr => pr.map(i => res[i].name)),
       })),
     };
@@ -720,6 +718,7 @@
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({
         id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers),
+        focused_pairs: normFocusedPairs(slots,normPairs(slots,(t.pairs || []).map(pr=>pr.map(n=>n2i[n]))),(t.focused_pairs || []).map(pr=>pr.map(n=>n2i[n]))),
         pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: Math.min(SCORE_MAX, r2(parseFloat(t.score || 0) * k)), tier: t.tier || "",
         patch: t.patch || "", kind: normKind(t.kind), team_type: t.team_type || "", notes: t.notes || "",
         active: t.active === 0 || t.active === false ? 0 : 1, source: t.source || "user",
@@ -826,9 +825,6 @@
     const pool = buildPool(templates, universe);
 
     const base = solve(templates, caps, 3000, pool);
-    // nhân vật đang được dùng trong team meta (theo cách xếp tối ưu hiện tại); DPS nào không nằm trong đây = đang chơi alt/chưa có chỗ
-    const usedMeta = new Set();
-    for (const c of base.picked) if ((tmap.get(c.tid) || {}).kind === "meta") c.ids.forEach(i => usedMeta.add(i));
     const ownedSet = new Set(caps.keys());
 
     // "Nên pull" chỉ xét META team: team alt (chắp vá) không được dùng để gợi ý pull, kể cả khi đã có 2 mảnh ghép
@@ -837,15 +833,17 @@
     const perSim = Math.max(300, Math.min(1500, 15000 / Math.max(candidates.length, 1)));
     const results = [];
     for (const r of candidates) {
+      const routes=templates.filter(t=>t.kind==="meta" && t.slots.some(slot=>slot.includes(r.id)));
+      if(routes.length && routes.every(t=>!allowsPull(t,r.id,ownedSet,templates))) continue;
+      const candidatePool=metaPool.filter(c=>!c.ids.includes(r.id) || allowsPull(tmap.get(c.tid),r.id,ownedSet,templates));
       const simCaps = new Map(caps); simCaps.set(r.id, 1);
-      const unlocked = metaPool.filter(c => c.ids.includes(r.id) && c.ids.every(i => simCaps.has(i)));
+      const unlocked = candidatePool.filter(c => c.ids.includes(r.id) && c.ids.every(i => simCaps.has(i)));
       // không meta team nào mở khóa -> kết quả y hệt hiện tại, khỏi giải lại
-      const after = unlocked.length ? solve(templates, simCaps, perSim, metaPool)
+      const after = unlocked.length ? solve(templates, simCaps, perSim, candidatePool)
         : { picked: [], score: baseMeta.score, usable: baseMeta.usable };
       const gain = r2(after.score - baseMeta.score);
       const newTeams = after.picked.filter(c => c.ids.includes(r.id));
-      const mb = metaBonusFor(r.id, templates, ownedSet, usedMeta);
-      if (mb.redundant) continue;     // A đã xích với B (đang có) rồi -> không gợi ý pull C nữa
+      const mb = metaBonusFor(r.id, templates, ownedSet);
       const pairable = unlocked.length > 0 || mb.bonus > 0;    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
       // Potential chỉ cộng cho nhóm "Nhân vật tiềm năng" (không ghép được); nhóm ghép được thì không cộng Potential
       const potPts = pairable ? 0 : (root.POTENTIAL_POINTS[r.potential] || 0);
@@ -881,11 +879,11 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "tiers", "pairs", "score", "kind", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "tiers", "pairs", "focused_pairs", "score", "kind", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
-      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : k === "kind" ? normKind(t.kind) : t[k]])
+      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : k === "focused_pairs" ? normFocusedPairs(t.slots,t.pairs,t.focused_pairs) : k === "kind" ? normKind(t.kind) : t[k]])
         .filter(([k, v]) => !(k === "pairs" && !v.length)))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";
@@ -893,7 +891,7 @@
 
   root.engineApi = engineApi;
   root.WuwaEngine = {
-    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS, metaBonusFor,
+    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS, metaBonusFor, allowsPull, normFocusedPairs, dpsAlreadyChained,
     hasLocalEdits, resetLocalEdits, loadDb, exportJson, ready,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.WuwaEngine;

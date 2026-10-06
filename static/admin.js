@@ -3,6 +3,7 @@ let byId = {};
 let teams = [];
 let slots = [[], [], []];
 let slotTiers = [[], [], []];   // bậc S→F của từng nhân vật trong slot (song song với slots)
+let focusedFlags = [];
 let pairs = [];                 // cặp chuẩn [[idA, idB, idC], ...] (0 = ô trống, tối đa 1 ô trống): đủ bộ -> mỗi người được nâng 1 bậc
 let teamKind = "meta";           // dạng team đang chọn trong form: "meta" (team chuẩn) | "alt" (team chắp vá)
 const TIER_LIST = ["S", "A", "B", "C", "D", "E", "F"];
@@ -116,28 +117,31 @@ function renderPairs() {
     teamIds.filter(id => id === sel || !others.includes(id)).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(byId[id]?.name || "?")} (slot ${slots.map((s, i) => s.includes(id) ? i + 1 : 0).filter(Boolean).join("/")})</option>`).join("");
   box.innerHTML = `
     <div class="pairs-head"><b>🔗 Cặp chuẩn</b>
-      <span class="hint">Mỗi cặp có <b>3 ô</b>, được để trống 1 ô (tối thiểu 2 nhân vật). Khi <b>tất cả nhân vật trong cặp</b> cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên.</span></div>
+      <span class="hint">Mỗi cặp có <b>3 ô</b>, được để trống 1 ô (tối thiểu 2 nhân vật). Khi <b>tất cả nhân vật trong cặp</b> cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên. <b>Trọng tâm slot 1</b>: người slot 2/3 gợi ý người slot 1; không gợi ý chiều ngược lại khi chỉ có slot 1. Nếu đã có 2/3 người trong bộ xích ba, vẫn gợi ý người cuối để hoàn thành team. Chỉ áp dụng Pull của team Meta.</span></div>
     ${pairs.length ? pairs.map((p, i) => {
       const n = pairIds(p).length;
       const bad = n >= 2 && !pairOk(p);
       const few = n < 2;
       return `<div class="pair-row ${bad || few ? "bad" : ""}">
         ${[0, 1, 2].map(k => `${k ? '<span class="pair-link">🔗</span>' : ""}<select data-pair="${i}" data-side="${k}">${opt(p[k], p.filter((_, j) => j !== k))}</select>`).join("")}
+        <label class="focus-pair-toggle"><input type="checkbox" data-pair-focus="${i}" ${focusedFlags[i] ? "checked" : ""}> Trọng tâm slot 1</label>
         <button type="button" class="danger" data-pair-del="${i}">✕</button>
         ${bad ? '<span class="hint">Các nhân vật này không xếp được vào các slot khác nhau nên không đứng chung đội hình được</span>'
           : few ? '<span class="hint">Cần chọn ít nhất 2 nhân vật (cặp thiếu sẽ không được lưu)</span>' : ""}
       </div>`;
     }).join("") : '<div class="hint">Chưa có cặp nào.</div>'}
     <button type="button" class="small ghost" id="addPair" ${teamIds.length < 2 ? "disabled" : ""}>＋ Thêm cặp</button>`;
+  box.querySelectorAll("[data-pair-focus]").forEach(inp=>inp.addEventListener("change",()=>{focusedFlags[+inp.dataset.pairFocus]=inp.checked;}));
   box.querySelectorAll("select[data-pair]").forEach(sel => sel.addEventListener("change", () => {
     pairs[+sel.dataset.pair][+sel.dataset.side] = Number(sel.value) || 0;
     renderSlots();
   }));
   box.querySelectorAll("button[data-pair-del]").forEach(b => b.addEventListener("click", () => {
+    focusedFlags.splice(+b.dataset.pairDel,1);
     pairs.splice(+b.dataset.pairDel, 1);
     renderSlots();
   }));
-  box.querySelector("#addPair").addEventListener("click", () => { pairs.push([0, 0, 0]); renderSlots(); });
+  box.querySelector("#addPair").addEventListener("click", () => { pairs.push([0, 0, 0]); focusedFlags.push(false); renderSlots(); });
 }
 
 function renderSlots() {
@@ -198,6 +202,7 @@ function resetForm() {
   slots = [[], [], []];
   slotTiers = [[], [], []];
   pairs = [];
+  focusedFlags = [];
   document.getElementById("teamForm").reset();
   document.getElementById("formTitle").textContent = "Thêm team";
   document.getElementById("saveBtn").textContent = "Thêm team";
@@ -212,6 +217,7 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
     slots,
     tiers: slotTiers,
     pairs: pairs.filter(pairOk).map(pairIds),
+    focused_pairs: pairs.filter((p,i)=>focusedFlags[i] && pairOk(p)).map(pairIds),
     score: document.getElementById("score").value,
     kind: teamKind,
     team_type: document.getElementById("teamType").value,
@@ -237,6 +243,7 @@ function editTeam(id) {
   slots = t.slots.map(s => [...s]);
   // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
   slotTiers = t.slots.map((s, si) => s.map((_, k) => (t.tiers && t.tiers[si] && t.tiers[si][k]) || TIER_LIST[Math.min(k, 3)]));
+  focusedFlags = (t.pairs || []).map(p=>(t.focused_pairs || []).some(f=>f.slice().sort((a,b)=>a-b).join(",")===p.slice().sort((a,b)=>a-b).join(",")));
   pairs = (t.pairs || []).map(p => [p[0] || 0, p[1] || 0, p[2] || 0]);
   document.getElementById("teamName").value = t.name || "";
   document.getElementById("score").value = t.score;
@@ -265,7 +272,7 @@ async function duplicateTeam(id) {
   try {
     await api("/api/teams", "POST", {
       name: (t.name ? t.name + " " : "") + "(bản sao)",
-      slots: t.slots, tiers: t.tiers, pairs: t.pairs || [],
+      slots: t.slots, tiers: t.tiers, pairs: t.pairs || [], focused_pairs: t.focused_pairs || [],
       score: t.score, kind: t.kind === "alt" ? "alt" : "meta",
       team_type: t.team_type || "", notes: t.notes || "",
     });

@@ -595,3 +595,6 @@ body.resizing.rz-v { cursor: ns-resize; }
 .work-edge.l { left: -12px; } .work-edge.r { right: -12px; }
 body.resizing-h { cursor: ew-resize !important; user-select: none; -webkit-user-select: none; }
 body.resizing-h .panel { pointer-events: none; }
+
+.focus-pair-toggle { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--gold); cursor:pointer; }
+.focus-pair-toggle input[type=checkbox] { width:auto; flex:0 0 auto; }
