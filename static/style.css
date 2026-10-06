@@ -555,7 +555,7 @@ body.resizing.rz-v { cursor: ns-resize; }
 .head-actions label.inline.limit input { width: 130px; }
 #pullResult .panel-head h2 { font-size: 18px; }
 @media (min-width: 1100px) {
-  #pullResult { position: sticky; top: 84px; max-height: calc(100vh - 100px); overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain; }
+  #pullResult { position: static; max-height: none; overflow: visible; }
 }
 @media (max-width: 1099px) {
   .work-grid { grid-template-columns: 1fr !important; width: auto !important; margin-left: 0 !important; row-gap: 20px; }
@@ -598,3 +598,70 @@ body.resizing-h .panel { pointer-events: none; }
 
 .focus-pair-toggle { display:inline-flex; align-items:center; gap:7px; font-size:13px; color:var(--gold); cursor:pointer; }
 .focus-pair-toggle input[type=checkbox] { width:auto; flex:0 0 auto; }
+
+#pullResult { position: static; max-height: none; overflow: visible; align-self: start; }
+#pullResult .pull-gold-name { color: var(--gold); }
+.pull-star { display: inline-block; font-size: 13px; }
+.pull-linked-comps { display: flex; flex-wrap: wrap; gap: 9px 12px; margin-top: 8px; }
+.pull-linked-comp { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px; }
+.pull-linked-comp .face.off { opacity: .35; filter: grayscale(1); }
+.pull-link { font-size: 10px; opacity: .65; }
+
+.chip-penalty { width: 75px; padding: 5px 8px; flex: 0 0 auto; }
+#pullResult .pull-choice-box { grid-template-columns: 26px minmax(0,1fr); align-items: start; }
+.pull-option { display: flex; align-items: center; gap: 10px; }
+.pull-option > div { min-width: 0; }
+.pull-or { color: var(--muted); font-size: 12px; margin: 9px 0 9px 66px; }
+
+/* Main screen: roster / team builder / automatic Pull. */
+main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: grid; grid-template-columns: 320px minmax(0,1fr) minmax(300px, .65fr); gap: 18px; align-items: start; margin: 24px auto 100px; }
+.optimizer-shell .work-grid { display: contents; }
+.optimizer-shell > .panel, .optimizer-shell .work-grid > .panel { min-width: 0; margin-bottom: 0; }
+#rosterPanel { padding: 16px; position: sticky; top: 20px; max-height: calc(100dvh - 110px); display: grid; grid-template-rows: auto auto minmax(0,1fr) auto; gap: 12px; }
+#rosterPanel .panel-head h2 { font-size: 18px; }
+#rosterPanel #modeHint { font-size: 11px; margin-bottom: 0; }
+#rosterPanel .roster-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+#rosterPanel #search { width: 100%; flex: 1 1 100%; min-width: 0; }
+#rosterPanel .roster { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; overflow-y: auto; min-height: 0; scrollbar-width: thin; padding: 2px; align-content: start; }
+#rosterPanel .char { padding: 0; gap: 0; overflow: hidden; border-radius: 7px; border: 1px solid var(--line); align-self: start; }
+#rosterPanel .char .face { width: 100%; height: auto; aspect-ratio: 1; border: 0; border-radius: 0; box-shadow: none; }
+#rosterPanel .char .nm { width: 100%; min-height: 25px; padding: 5px 3px; background: rgba(5,10,18,.65); font-size: 11px; justify-content: flex-end; }
+#rosterPanel .char .nm-t { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; word-break: normal; }
+#rosterPanel .char .tagrow { position: absolute; top: 4px; left: 3px; right: 3px; width: auto; justify-content: flex-start; min-height: 0; margin: 0; z-index: 2; }
+#rosterPanel .char .st-tag { font-size: 8px; padding: 0 3px; }
+#rosterPanel .char.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+#rosterPanel .char:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.roster-actions { border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 9px; }
+.roster-actions .btn-pair { display: flex; flex-wrap: wrap; gap: 7px; }
+.roster-actions button { font-size: 11px; padding: 7px 9px; }
+.optimizer-shell #pullResult { position: static; max-height: none; overflow: visible; }
+.optimizer-shell #result .head-actions { justify-content: flex-start; margin-left: 0; }
+@media (min-width: 1600px) { main.optimizer-shell { grid-template-columns: 350px minmax(0,1fr) minmax(340px,.55fr); } }
+@media (max-width: 1199px) and (min-width: 850px) {
+  main.optimizer-shell { grid-template-columns: 300px minmax(0,1fr); }
+  .optimizer-shell #pullResult { grid-column: 2; }
+  #rosterPanel { grid-row: 1 / span 2; }
+}
+@media (max-width: 849px) {
+  main.optimizer-shell { grid-template-columns: minmax(0,1fr); padding: 0 12px; gap: 16px; }
+  #rosterPanel { position: static; max-height: none; }
+  #rosterPanel .roster { max-height: 480px; }
+  .optimizer-shell #result, .optimizer-shell #pullResult { grid-column: 1; }
+}
+
+/* Keep roster rows at their content height inside the scroll area. */
+#rosterPanel .roster { grid-auto-rows: max-content; align-items: start; }
+#rosterPanel .char { display: block; height: auto; min-height: 0; border: 2px solid var(--el, var(--line)); }
+#rosterPanel .char .face { display: block; width: 100%; height: auto; aspect-ratio: 1; }
+#rosterPanel .char .face img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; }
+#rosterPanel .char .nm { height: 27px; min-height: 27px; border-top: 1px solid var(--el, var(--line)); }
+#rosterPanel .char.selected { border-color: var(--el, var(--accent)); box-shadow: 0 0 0 1px var(--el, var(--accent)); }
+#rosterPanel .char.selected::after { content: "✓"; position: absolute; right: 4px; bottom: 31px; width: 17px; height: 17px; display: grid; place-items: center; border-radius: 50%; background: var(--el, var(--accent)); color: #07101c; font-size: 12px; font-weight: 900; }
+
+/* Elemental color is reserved for selected roster cards. */
+#rosterPanel .char { border-color: var(--line); }
+#rosterPanel .char .nm { border-top-color: var(--line); }
+#rosterPanel .char:hover { border-color: var(--muted); }
+#rosterPanel .char.selected, #rosterPanel .char.selected:hover { border-color: var(--el, var(--accent)); box-shadow: 0 0 0 1px var(--el, var(--accent)), 0 0 12px color-mix(in srgb, var(--el, var(--accent)) 35%, transparent); }
+#rosterPanel .char.selected .nm { border-top-color: var(--el, var(--accent)); }
+#rosterPanel .char.selected::after { content: none; display: none; }

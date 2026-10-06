@@ -6,23 +6,27 @@
 
   const SCORE_MAX = 100;     // thang điểm 1–100
   const SCORE_MIN_EFF = 0.1; // điểm sàn sau khi trừ bậc (team vẫn được tính)
-  const RANK_PENALTY = 0.5;  // mỗi bậc hạ xuống (S→A→B→…→F) bị trừ 0.5 điểm; cùng bậc thì không trừ
-  const SLOT_TIERS = ["S", "A", "B", "C", "D", "E", "F"];
-  const LEGACY_MAX = 3;     // dữ liệu cũ chưa có "tiers": suy ra từ vị trí, tối đa tới C (như trước đây)
-  const tierIdx = v => { const i = SLOT_TIERS.indexOf(String(v || "").toUpperCase()); return i < 0 ? 0 : i; };
-  // Bậc của từng nhân vật trong slot. Dữ liệu cũ chưa có "tiers" thì suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C)
-  // để điểm các team cũ giữ nguyên.
-  function slotTierIdx(t, si, k) {
-    const tt = t.tiers && t.tiers[si];
-    if (tt && tt[k] !== undefined) return tierIdx(tt[k]);
-    return Math.min(k, LEGACY_MAX);
-  }
-  // Chuẩn hóa tiers theo slots (đủ độ dài, giá trị hợp lệ)
-  function normTiers(slots, tiers) {
-    return slots.map((s, si) => s.map((_, k) => {
-      const v = tiers && tiers[si] && tiers[si][k];
-      return SLOT_TIERS.includes(String(v || "").toUpperCase()) ? String(v).toUpperCase() : SLOT_TIERS[Math.min(k, LEGACY_MAX)];
+  const PAIR_DISCOUNT = 0.5;
+  const LEGACY_TIERS = ["S","A","B","C","D","E","F"];
+  function normPenalties(slots,values) {
+    return slots.map((slot,si)=>slot.map((_,k)=>{
+      const n=Number(values?.[si]?.[k] ?? 0);
+      if(!Number.isFinite(n) || n<0) throw new Error("Hệ số trừ phải là số không âm");
+      return n;
     }));
+  }
+  function teamPenalties(t) {
+    if(t.penalties) return normPenalties(t.slots,t.penalties);
+    return t.slots.map((slot,si)=>slot.map((_,k)=>{
+      const value=t.tiers?.[si]?.[k];
+      const rank=value!==undefined ? Math.max(0,LEGACY_TIERS.indexOf(String(value).toUpperCase())) : Math.min(k,3);
+      return rank*0.5;
+    }));
+  }
+  const slotPenalty=(t,si,k)=>teamPenalties(t)[si][k];
+  function migratePenaltyDb(db) {
+    db.teams=db.teams.map(t=>{const {tiers,...rest}=t;return {...rest,penalties:teamPenalties(t)};});
+    return db;
   }
   // ---- Cặp chuẩn (pairs): team có thể khai báo các bộ 2–3 nhân vật ăn ý với nhau, dạng [idA, idB, idC?]
   // (3 ô, được để trống 1 ô). Khi TẤT CẢ nhân vật của bộ cùng có mặt trong đội hình thì mỗi người được nâng 1 bậc
@@ -65,7 +69,7 @@
     for (const p of activePairs(t, ids)) p.forEach(x => out.add(x));
     return out;
   }
-  const effIdx = (idx, boosted) => boosted ? Math.max(idx - 1, 0) : idx;
+  const effPenalty = (pen, boosted) => boosted ? Math.max(pen - PAIR_DISCOUNT, 0) : pen;
 
   // Dạng team: "meta" = team chuẩn, "alt" = alternative (team chắp vá). Dữ liệu cũ chưa có -> coi là meta.
   const KINDS = ["meta", "alt"];
@@ -94,12 +98,18 @@
   const focusedPair = (t,p) => (t.focused_pairs || []).some(f=>pairKey(f)===pairKey(p));
   // An already fulfilled alternative link can suppress another ordinary link.
   // Merely owning one member of an unfinished triple does not fulfill that triple.
-  function dpsAlreadyChained(o, x, pair, templates, owned) {
+  function dpsAlreadyChained(o, x, pair, current, templates, owned) {
     for(const t of templates) {
       if(t.kind!=="meta" || !t.active) continue;
       for(const p of t.pairs || []) {
         if(pairKey(p)===pairKey(pair) || !p.includes(o) || p.includes(x)) continue;
-        if(p.every(id=>id===o || owned.has(id))) return true;
+        if(!p.every(id=>id===o || owned.has(id))) continue;
+        // Only fulfilled links competing for the same slot replace this link.
+        // An owned member in a different slot is another needed teammate.
+        for(let ai=0;ai<3;ai++) if(current.slots[ai].includes(o) && t.slots[ai].includes(o)) {
+          for(let si=0;si<3;si++) if(si!==ai && current.slots[si].includes(x)
+            && t.slots[si].some(id=>id!==o && p.includes(id) && owned.has(id))) return true;
+        }
       }
     }
     return false;
@@ -109,14 +119,33 @@
     if(pair.length===3 && pair.filter(id=>id!==x).every(id=>owned.has(id))) return true;
     if(focusedPair(t,pair)) return t.slots[0].includes(x);
     const have=pair.filter(id=>id!==x && owned.has(id));
-    return !have.some(o=>dpsAlreadyChained(o,x,pair,templates,owned));
+    return !have.some(o=>dpsAlreadyChained(o,x,pair,t,templates,owned));
   }
   function allowsPull(t,x,owned=new Set(),templates=[t]) {
     const links=(t.pairs || []).filter(p=>p.includes(x));
-    return !links.length || links.some(pair=>linkAllowed(t,pair,x,templates,owned));
+    if(links.length) return links.some(pair=>linkAllowed(t,pair,x,templates,owned));
+    // An unlinked candidate is redundant when this same full template is
+    // already usable with an owned replacement. Other routes are independent.
+    if(t.slots.every(slot=>slot.length) && expandTemplate(t,owned).length) return false;
+    if((t.pairs || []).length || t.slots.filter(slot=>slot.length).length!==2) return true;
+    const matches=[];
+    for(let si=0;si<3;si++) if(t.slots[si].includes(x)) {
+      for(let ai=0;ai<3;ai++) if(ai!==si) for(const anchor of t.slots[ai]) {
+        if(anchor===x || !owned.has(anchor)) continue;
+        const satisfied=templates.some(other=>other.kind==="meta" && other.active
+          && other.slots[ai].includes(anchor)
+          && other.slots[si].some(id=>id!==anchor && id!==x && owned.has(id)
+            && (other.slots.filter(slot=>slot.length).length===2
+              || (other.pairs || []).some(pair=>pair.includes(anchor) && pair.includes(id)
+                && pair.every(member=>owned.has(member))))));
+        matches.push(!satisfied);
+      }
+    }
+    return !matches.length || matches.some(Boolean);
   }
   function metaBonusFor(x,templates,owned) {
-    let best={bonus:0}, blocked=false;
+    let best={bonus:0}, blocked=false, bestScore=0;
+    const chains=[], seenChains=new Set();
     for(const t of templates) {
       if(t.kind!=="meta" || !t.active) continue;
       const self=t.slots[0].includes(x);
@@ -125,11 +154,26 @@
         const have=pair.filter(id=>id!==x && owned.has(id));
         if(!have.length) continue;
         if(!linkAllowed(t,pair,x,templates,owned)) {blocked=true;continue;}
+        {
+          const seated=[null,null,null];
+          const seat=k=>{if(k===pair.length)return true;for(let si=0;si<3;si++)if(seated[si]===null && t.slots[si].includes(pair[k])){seated[si]=pair[k];if(seat(k+1))return true;seated[si]=null;}return false;};
+          seat(0);
+          const boosted=boostedIds(t,pair);
+          const penalty=seated.reduce((sum,id,si)=>id===null ? sum : sum+effPenalty(slotPenalty(t,si,t.slots[si].indexOf(id)),boosted.has(id)),0);
+          bestScore=Math.max(bestScore,r2(Math.max(Number(t.score)-penalty,SCORE_MIN_EFF)));
+          const chainKey=t.id+":"+pairKey(pair);
+          if(!seenChains.has(chainKey)) {
+            seenChains.add(chainKey);
+            chains.push({team_id:t.id,name:t.name,slot1:seated[0],members:seated.filter(id=>id!==null)});
+          }
+        }
         const complete=pair.length===3 ? have.length===2 : pairHasC(t,pair,owned);
         const bonus=complete ? META_FULL : META_PAIR;
         if(bonus>best.bonus) best={bonus,team:t,dps:self ? [] : t.slots[0].filter(id=>owned.has(id)),complete,self};
       }
     }
+    best.chains=chains;
+    best.best_score=bestScore;
     if(!best.bonus && blocked) best.redundant=true;
     return best;
   }
@@ -159,7 +203,7 @@
     for (let si = 0; si < t.slots.length; si++) {
       const slot = t.slots[si];
       const opts = [];
-      slot.forEach((rid, k) => { if (!allowed || allowed.has(rid)) opts.push([rid, slotTierIdx(t, si, k)]); });
+      slot.forEach((rid, k) => { if (!allowed || allowed.has(rid)) opts.push([rid, slotPenalty(t, si, k)]); });
       if (!opts.length) return [];
       slotOpts.push(opts);
     }
@@ -168,7 +212,7 @@
       if (a[0] === b[0] || a[0] === c[0] || b[0] === c[0]) continue;
       const ids = [a[0], b[0], c[0]];
       const bst = boostedIds(t, ids);
-      const pen = (effIdx(a[1], bst.has(a[0])) + effIdx(b[1], bst.has(b[0])) + effIdx(c[1], bst.has(c[0]))) * RANK_PENALTY;
+      const pen = (effPenalty(a[1], bst.has(a[0])) + effPenalty(b[1], bst.has(b[0])) + effPenalty(c[1], bst.has(c[0])));
       const score = r2(Math.max(Number(t.score) - pen, SCORE_MIN_EFF));
       const key = ids.slice().sort((x, y) => x - y).join(",");
       const cur = best.get(key);
@@ -426,8 +470,8 @@
   function teamScoreFor(t, members) {
     let pen = 0;
     const bst = boostedIds(t, members);
-    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? effIdx(slotTierIdx(t, si, i), bst.has(m)) : 0; });
-    return r2(Math.max(Number(t.score) - pen * RANK_PENALTY, SCORE_MIN_EFF));
+    members.forEach((m, si) => { const i = t.slots[si].indexOf(m); pen += i >= 0 ? effPenalty(slotPenalty(t, si, i), bst.has(m)) : 0; });
+    return r2(Math.max(Number(t.score) - pen, SCORE_MIN_EFF));
   }
 
   function incompleteSuggestions(leftoverIds, owned, busy, templates) {
@@ -463,7 +507,7 @@
   // ------------------------------------------------------------------ lưu trữ
   function seedDb() {
     const d = clone(root.WUWA_DATA);
-    return { resonators: d.resonators, teams: d.teams, edited: false, scoreScale: SCORE_MAX };
+    return migratePenaltyDb({resonators:d.resonators,teams:d.teams,edited:false,scoreScale:SCORE_MAX});
   }
   function loadDb() {
     try {
@@ -475,7 +519,7 @@
             d.teams.forEach(t => { t.score = r2(Number(t.score || 0) * 10); });
             d.scoreScale = SCORE_MAX;
           }
-          return d;
+          return migratePenaltyDb(d);
         }
       }
     } catch (e) { /* bỏ qua */ }
@@ -562,7 +606,7 @@
     // Team có thể thiếu slot, miễn là có ít nhất 2 nhân vật.
     // Các team đủ 3 nhân vật vẫn giữ nguyên logic cũ; team thiếu người chỉ dùng được ở các chức năng hỗ trợ team chưa hoàn chỉnh.
     const s = k => String(data[k] || "").trim();
-    return { name: s("name"), slots, tiers: normTiers(slots, data.tiers), pairs, focused_pairs: normFocusedPairs(slots,pairs,data.focused_pairs), score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
+    return { name: s("name"), slots, penalties: data.penalties ? normPenalties(slots,data.penalties) : data.tiers ? teamPenalties({slots,tiers:data.tiers}) : normPenalties(slots,[]), pairs, focused_pairs: normFocusedPairs(slots,pairs,data.focused_pairs), score, kind: normKind(data.kind), team_type: s("team_type"), notes: s("notes") };
   }
 
   // ------------------------------------------------------------------ "API" (thay cho Flask)
@@ -688,7 +732,7 @@
         name: t.name, score: t.score, tier: t.tier, patch: t.patch, kind: t.kind, team_type: t.team_type,
         notes: t.notes, active: t.active, source: t.source,
         slots: t.slots.map(s => s.filter(i => res[i]).map(i => res[i].name)),
-        tiers: t.slots.map((s, si) => s.map((_, k) => SLOT_TIERS[slotTierIdx(t, si, k)])),
+        penalties: teamPenalties(t),
         focused_pairs: (t.focused_pairs || []).filter(pr=>pr.every(i=>res[i])).map(pr=>pr.map(i=>res[i].name)),
         pairs: (t.pairs || []).filter(pr => pr.every(i => res[i])).map(pr => pr.map(i => res[i].name)),
       })),
@@ -717,7 +761,7 @@
       const key = (t.name || "") + "|" + JSON.stringify(slots);
       if (existing.has(key)) { skipped++; continue; }
       db.teams.push({
-        id: nextId(db.teams), name: t.name || "", slots, tiers: normTiers(slots, t.tiers),
+        id: nextId(db.teams), name: t.name || "", slots, penalties: teamPenalties({...t,slots}),
         focused_pairs: normFocusedPairs(slots,normPairs(slots,(t.pairs || []).map(pr=>pr.map(n=>n2i[n]))),(t.focused_pairs || []).map(pr=>pr.map(n=>n2i[n]))),
         pairs: normPairs(slots, (t.pairs || []).map(pr => pr.map(n => n2i[n]))), score: Math.min(SCORE_MAX, r2(parseFloat(t.score || 0) * k)), tier: t.tier || "",
         patch: t.patch || "", kind: normKind(t.kind), team_type: t.team_type || "", notes: t.notes || "",
@@ -778,8 +822,8 @@
           if (k === mem.length) {
             const bst = boostedIds(t, mem);
             let pen = 0;
-            for (const [id, idx] of base) pen += effIdx(idx, bst.has(id));
-            const sc = r2(Math.max(Number(t.score) - pen * RANK_PENALTY, SCORE_MIN_EFF));
+            for (const [id, idx] of base) pen += effPenalty(idx, bst.has(id));
+            const sc = r2(Math.max(Number(t.score) - pen, SCORE_MIN_EFF));
             if (!best || sc > best.sc) best = { t, sc, assign: assign.slice() };
             return;
           }
@@ -788,7 +832,7 @@
             const idx = t.slots[si].indexOf(mem[k]);
             if (idx < 0) continue;
             assign[si] = mem[k];
-            base.set(mem[k], slotTierIdx(t, si, idx));
+            base.set(mem[k], slotPenalty(t, si, idx));
             rec(k + 1, 0);
             base.delete(mem[k]);
             assign[si] = null;
@@ -827,9 +871,9 @@
     const base = solve(templates, caps, 3000, pool);
     const ownedSet = new Set(caps.keys());
 
-    // "Nên pull" chỉ xét META team: team alt (chắp vá) không được dùng để gợi ý pull, kể cả khi đã có 2 mảnh ghép
-    const metaPool = pool.filter(c => (tmap.get(c.tid) || {}).kind === "meta");
-    const baseMeta = solve(templates, caps, 3000, metaPool);
+    // Pull only considers active META comps, including 2/3 completion.
+    const metaPool = pool.filter(c => tmap.get(c.tid)?.kind === "meta");
+    const baseMeta = solve(templates,caps,3000,metaPool);
     const perSim = Math.max(300, Math.min(1500, 15000 / Math.max(candidates.length, 1)));
     const results = [];
     for (const r of candidates) {
@@ -842,25 +886,52 @@
       const after = unlocked.length ? solve(templates, simCaps, perSim, candidatePool)
         : { picked: [], score: baseMeta.score, usable: baseMeta.usable };
       const gain = r2(after.score - baseMeta.score);
-      const newTeams = after.picked.filter(c => c.ids.includes(r.id));
       const mb = metaBonusFor(r.id, templates, ownedSet);
-      const pairable = unlocked.length > 0 || mb.bonus > 0;    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
+      // A ready comp supplies its own chain evidence; do not borrow a link
+      // from another incomplete comp for the same candidate.
+      const displayChains = (mb.chains || []).filter(chain => !unlocked.length
+        || unlocked.some(comp => comp.tid===chain.team_id
+          && chain.members.every(id=>comp.ids.includes(id))));
+      // Comp có đúng hai slot, không xích: ghép với người đã sở hữu.
+      // Không đưa comp thiếu slot vào solver xếp team.
+      const twoMemberTeams = [];
+      for (const t of routes) {
+        const slots = t.slots.filter(slot => slot.length);
+        if (t.kind!=="meta" || slots.length !== 2 || (t.pairs || []).length || !allowsPull(t,r.id,ownedSet,templates)) continue;
+        for (const a of slots[0]) for (const b of slots[1]) {
+          if (a === b || ![a,b].includes(r.id)) continue;
+          if (!ownedSet.has(a === r.id ? b : a)) continue;
+          const penalty = [a,b].reduce((sum,id) => {
+            const si = t.slots.findIndex(slot => slot.includes(id));
+            return sum + slotPenalty(t,si,t.slots[si].indexOf(id));
+          },0);
+          twoMemberTeams.push({team_id:t.id,name:t.name,tier:t.tier,
+            score:r2(Math.max(Number(t.score)-penalty,SCORE_MIN_EFF)),members:[a,b]});
+        }
+      }
+      const twoMemberBonus = twoMemberTeams.length ? META_PAIR : 0;
+      const readyBonus = unlocked.length ? META_FULL : 0;
+      const pairBonus = Math.max(mb.bonus,twoMemberBonus,readyBonus);
+      const pairable = unlocked.length > 0 || mb.bonus > 0 || twoMemberTeams.length > 0;    // ghép được ít nhất 1 META team (hoặc ghép cặp meta) với nhân vật đang có
       // Potential chỉ cộng cho nhóm "Nhân vật tiềm năng" (không ghép được); nhóm ghép được thì không cộng Potential
       const potPts = pairable ? 0 : (root.POTENTIAL_POINTS[r.potential] || 0);
       results.push({
         id: r.id, name: r.name, gain, new_score: r2(base.score + gain),
         potential: r.potential, potential_pts: potPts,
         meta_bonus: mb.bonus,
+        chains: displayChains,
         meta: mb.bonus ? { team_id: mb.team.id, name: mb.team.name, dps: mb.dps, complete: mb.complete, self: mb.self } : null,
-        pull: r2(gain + potPts + mb.bonus),
+        ready_bonus: readyBonus,
+        pull: r2(gain + potPts + pairBonus),
         pairable,
         unlocked: new Set(unlocked.map(c => c.tid)).size,
-        best_unlocked: unlocked.reduce((m, c) => Math.max(m, c.score), 0),
-        teams: newTeams.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,
-          score: c.score, members: c.ids.slice() })),
+        best_unlocked: [...unlocked,...twoMemberTeams].reduce((m, c) => Math.max(m, c.score), mb.best_score || 0),
+        teams: unlocked.map(c => ({ team_id: c.tid, name: tmap.get(c.tid).name, tier: tmap.get(c.tid).tier,
+          score: c.score, members: c.ids.slice() })).concat(twoMemberTeams),
       });
     }
-    results.sort((a, b) => b.pull - a.pull || b.gain - a.gain || b.best_unlocked - a.best_unlocked || b.new_score - a.new_score);
+    results.sort((a,b) => b.pull-a.pull || b.best_unlocked-a.best_unlocked
+      || b.gain-a.gain || b.new_score-a.new_score);
     return { base_score: base.score, owned_count: caps.size, results };
   });
 
@@ -879,11 +950,11 @@
   function exportDataJs() {
     const db = loadDb();
     const line = o => JSON.stringify(o);
-    const fields = ["id", "name", "slots", "tiers", "pairs", "focused_pairs", "score", "kind", "team_type", "notes", "active", "source"];
+    const fields = ["id", "name", "slots", "penalties", "pairs", "focused_pairs", "score", "kind", "team_type", "notes", "active", "source"];
     const res = db.resonators.slice().sort((a, b) => a.id - b.id)
       .map(r => { const m = resMeta(r); return "  " + line({ id: r.id, name: r.name, rarity: r.rarity, element: r.element, released: m.released, slug: m.slug, role: m.role, date: m.date, status: m.status, potential: m.potential }); });
     const teams = db.teams.slice().sort((a, b) => a.id - b.id)
-      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "tiers" ? normTiers(t.slots, t.tiers) : k === "pairs" ? normPairs(t.slots, t.pairs) : k === "focused_pairs" ? normFocusedPairs(t.slots,t.pairs,t.focused_pairs) : k === "kind" ? normKind(t.kind) : t[k]])
+      .map(t => "  " + line(Object.fromEntries(fields.map(k => [k, k === "penalties" ? teamPenalties(t) : k === "pairs" ? normPairs(t.slots, t.pairs) : k === "focused_pairs" ? normFocusedPairs(t.slots,t.pairs,t.focused_pairs) : k === "kind" ? normKind(t.kind) : t[k]])
         .filter(([k, v]) => !(k === "pairs" && !v.length)))));
     return "// Dữ liệu gốc của site (Resonator + team). Xuất từ trang Admin.\n" +
       "window.WUWA_DATA = {\n \"resonators\": [\n" + res.join(",\n") + "\n ],\n \"teams\": [\n" + teams.join(",\n") + "\n ]\n};\n";
@@ -891,7 +962,7 @@
 
   root.engineApi = engineApi;
   root.WuwaEngine = {
-    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normTiers, SLOT_TIERS, metaBonusFor, allowsPull, normFocusedPairs, dpsAlreadyChained,
+    KINDS, normKind, engineApi, solve, buildPool, buildCaps, expandTemplate, exportDataJs, normPenalties, teamPenalties, metaBonusFor, allowsPull, normFocusedPairs, dpsAlreadyChained,
     hasLocalEdits, resetLocalEdits, loadDb, exportJson, ready,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = root.WuwaEngine;

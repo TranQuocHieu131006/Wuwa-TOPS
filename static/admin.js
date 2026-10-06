@@ -2,18 +2,14 @@ let chars = [];
 let byId = {};
 let teams = [];
 let slots = [[], [], []];
-let slotTiers = [[], [], []];   // bậc S→F của từng nhân vật trong slot (song song với slots)
+let slotPenalties = [[], [], []];   // bậc S→F của từng nhân vật trong slot (song song với slots)
 let focusedFlags = [];
-let pairs = [];                 // cặp chuẩn [[idA, idB, idC], ...] (0 = ô trống, tối đa 1 ô trống): đủ bộ -> mỗi người được nâng 1 bậc
+let pairs = [];                 // cặp chuẩn [[idA, idB, idC], ...] (0 = ô trống, tối đa 1 ô trống): đủ bộ -> mỗi người được giảm hệ số trừ 0.5
 let teamKind = "meta";           // dạng team đang chọn trong form: "meta" (team chuẩn) | "alt" (team chắp vá)
-const TIER_LIST = ["S", "A", "B", "C", "D", "E", "F"];
-const tierRank = v => Math.max(TIER_LIST.indexOf(v), 0);
-// giữ danh sách trong slot luôn xếp từ bậc cao xuống thấp (ổn định: cùng bậc giữ nguyên thứ tự thêm)
 function sortSlot(si) {
-  const arr = slots[si].map((id, k) => ({ id, t: slotTiers[si][k] || "S", k }));
-  arr.sort((a, b) => tierRank(a.t) - tierRank(b.t) || a.k - b.k);
-  slots[si] = arr.map(x => x.id);
-  slotTiers[si] = arr.map(x => x.t);
+  const arr=slots[si].map((id,k)=>({id,pen:slotPenalties[si][k] ?? 0,k}));
+  arr.sort((a,b)=>a.pen-b.pen || a.k-b.k);
+  slots[si]=arr.map(x=>x.id);slotPenalties[si]=arr.map(x=>x.pen);
 }
 const fmtScore = n => (Number.isInteger(+n) ? String(+n) : (+n).toFixed(1));
 let editing = null;
@@ -38,9 +34,9 @@ let focusSlot = null;   // giữ focus ở ô tìm sau khi thêm, để thêm li
 
 function addToSlot(si, id) {
   if (id && !slots[si].includes(id)) {
-    const last = slotTiers[si][slotTiers[si].length - 1];
+    const last = slotPenalties[si][slotPenalties[si].length - 1];
     slots[si].push(id);
-    slotTiers[si].push(last || "S");      // mặc định cùng bậc với nhân vật liền trước => không bị trừ điểm
+    slotPenalties[si].push(last ?? 0);      // mặc định cùng bậc với nhân vật liền trước => không bị trừ điểm
   }
   focusSlot = si;
   renderSlots();
@@ -108,7 +104,7 @@ function prunePairs() {
 function pairBadge(id) {
   const partners = pairs.filter(p => p.includes(id) && pairOk(p))
     .map(p => pairIds(p).filter(x => x !== id).map(x => byId[x]?.name).filter(Boolean).join(" + ")).filter(Boolean);
-  return partners.length ? ` <span class="pair-badge" title="Đi cùng ${esc(partners.join(" / "))} thì được nâng 1 bậc">🔗 ${esc(partners.join(" / "))}</span>` : "";
+  return partners.length ? ` <span class="pair-badge" title="Đi cùng ${esc(partners.join(" / "))} thì được giảm hệ số trừ 0.5">🔗 ${esc(partners.join(" / "))}</span>` : "";
 }
 function renderPairs() {
   const box = document.getElementById("pairsBox");
@@ -117,7 +113,7 @@ function renderPairs() {
     teamIds.filter(id => id === sel || !others.includes(id)).map(id => `<option value="${id}" ${id === sel ? "selected" : ""}>${esc(byId[id]?.name || "?")} (slot ${slots.map((s, i) => s.includes(id) ? i + 1 : 0).filter(Boolean).join("/")})</option>`).join("");
   box.innerHTML = `
     <div class="pairs-head"><b>🔗 Cặp chuẩn</b>
-      <span class="hint">Mỗi cặp có <b>3 ô</b>, được để trống 1 ô (tối thiểu 2 nhân vật). Khi <b>tất cả nhân vật trong cặp</b> cùng có mặt trong đội hình thì <b>mỗi người được nâng 1 bậc</b> (A→S, B→A…; đã S thì vẫn S). Đứng riêng thì giữ nguyên bậc đã chọn ở trên. <b>Trọng tâm slot 1</b>: người slot 2/3 gợi ý người slot 1; không gợi ý chiều ngược lại khi chỉ có slot 1. Nếu đã có 2/3 người trong bộ xích ba, vẫn gợi ý người cuối để hoàn thành team. Chỉ áp dụng Pull của team Meta.</span></div>
+      <span class="hint">Mỗi cặp có <b>3 ô</b>, được để trống 1 ô (tối thiểu 2 nhân vật). Khi <b>tất cả nhân vật trong cặp</b> cùng có mặt trong đội hình thì <b>mỗi người được giảm hệ số trừ 0.5</b> (tối thiểu 0). Đứng riêng thì giữ nguyên hệ số trừ đã nhập. <b>Trọng tâm slot 1</b>: người slot 2/3 gợi ý người slot 1; không gợi ý chiều ngược lại khi chỉ có slot 1. Nếu đã có 2/3 người trong bộ xích ba, vẫn gợi ý người cuối để hoàn thành team. Chỉ áp dụng Pull của team Meta.</span></div>
     ${pairs.length ? pairs.map((p, i) => {
       const n = pairIds(p).length;
       const bad = n >= 2 && !pairOk(p);
@@ -154,9 +150,7 @@ function renderSlots() {
           <div class="slot-chip">
             ${faceHTML(byId[id], { size: "sm" })}
             <span class="grow">${esc(byId[id]?.name || "?")}${pairBadge(id)}</span>
-            <select class="chip-tier t-${slotTiers[si][k] || "S"}" data-tier data-s="${si}" data-k="${k}" title="Bậc của nhân vật này trong slot (hạ 1 bậc = trừ 0.5 điểm)">
-              ${TIER_LIST.map(t => `<option value="${t}" ${t === (slotTiers[si][k] || "S") ? "selected" : ""}>${t}</option>`).join("")}
-            </select>
+            <input class="chip-penalty" type="number" min="0" step="any" required value="${slotPenalties[si][k] ?? 0}" data-penalty data-s="${si}" data-k="${k}" title="Hệ số trừ trực tiếp khỏi điểm team" aria-label="Hệ số trừ">
             <button type="button" class="danger" data-act="del" data-s="${si}" data-k="${k}">✕</button>
           </div>`).join("") : '<span class="hint">Chưa chọn nhân vật nào</span>'}
       </div>
@@ -174,12 +168,13 @@ function renderSlots() {
   }
   box.querySelectorAll("button[data-act]").forEach(btn => btn.addEventListener("click", () => {
     const si = Number(btn.dataset.s), k = Number(btn.dataset.k);
-    if (btn.dataset.act === "del") { slots[si].splice(k, 1); slotTiers[si].splice(k, 1); prunePairs(); }
+    if (btn.dataset.act === "del") { slots[si].splice(k, 1); slotPenalties[si].splice(k, 1); prunePairs(); }
     renderSlots();
   }));
-  box.querySelectorAll("select[data-tier]").forEach(sel => sel.addEventListener("change", () => {
+  box.querySelectorAll("input[data-penalty]").forEach(sel => sel.addEventListener("change", () => {
     const si = Number(sel.dataset.s), k = Number(sel.dataset.k);
-    slotTiers[si][k] = sel.value;
+    if (!sel.checkValidity()) { toast("Hệ số trừ phải là số không âm",true); return; }
+    slotPenalties[si][k] = Number(sel.value);
     sortSlot(si);
     renderSlots();
   }));
@@ -200,7 +195,7 @@ function resetForm() {
   syncKind();
   scoreTouched = false;
   slots = [[], [], []];
-  slotTiers = [[], [], []];
+  slotPenalties = [[], [], []];
   pairs = [];
   focusedFlags = [];
   document.getElementById("teamForm").reset();
@@ -215,7 +210,7 @@ document.getElementById("teamForm").addEventListener("submit", async e => {
   const body = {
     name: document.getElementById("teamName").value,
     slots,
-    tiers: slotTiers,
+    penalties: slotPenalties,
     pairs: pairs.filter(pairOk).map(pairIds),
     focused_pairs: pairs.filter((p,i)=>focusedFlags[i] && pairOk(p)).map(pairIds),
     score: document.getElementById("score").value,
@@ -242,7 +237,7 @@ function editTeam(id) {
   scoreTouched = true;
   slots = t.slots.map(s => [...s]);
   // team cũ chưa có tiers: suy ra từ vị trí (1→S, 2→A, 3→B, 4+→C) để điểm không đổi
-  slotTiers = t.slots.map((s, si) => s.map((_, k) => (t.tiers && t.tiers[si] && t.tiers[si][k]) || TIER_LIST[Math.min(k, 3)]));
+  slotPenalties = WuwaEngine.teamPenalties(t);
   focusedFlags = (t.pairs || []).map(p=>(t.focused_pairs || []).some(f=>f.slice().sort((a,b)=>a-b).join(",")===p.slice().sort((a,b)=>a-b).join(",")));
   pairs = (t.pairs || []).map(p => [p[0] || 0, p[1] || 0, p[2] || 0]);
   document.getElementById("teamName").value = t.name || "";
@@ -272,7 +267,7 @@ async function duplicateTeam(id) {
   try {
     await api("/api/teams", "POST", {
       name: (t.name ? t.name + " " : "") + "(bản sao)",
-      slots: t.slots, tiers: t.tiers, pairs: t.pairs || [], focused_pairs: t.focused_pairs || [],
+      slots: t.slots, penalties: t.penalties, pairs: t.pairs || [], focused_pairs: t.focused_pairs || [],
       score: t.score, kind: t.kind === "alt" ? "alt" : "meta",
       team_type: t.team_type || "", notes: t.notes || "",
     });

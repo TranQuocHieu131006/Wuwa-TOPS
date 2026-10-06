@@ -3,8 +3,7 @@ let resonators = [];
 let byId = {};
 let selected = new Set();
 let extra = new Set();          // nhân vật được +1 lần dùng (Matrix): chính là các Healer đã chọn
-let sortKey = "name";           // "name" | "date"
-let sortDir = "asc";
+
 let mode = "toa";
 let maxTeams = null;            // giới hạn số team khi xếp (null = không giới hạn)
 let hasPull = false;
@@ -28,8 +27,6 @@ const LS = {
       extra = new Set(JSON.parse(localStorage.getItem("wuwa.extra") || "[]"));
       mode = localStorage.getItem("wuwa.mode") || "toa";
       maxTeams = parseMax(localStorage.getItem("wuwa.maxTeams"));
-      sortKey = localStorage.getItem("wuwa.sortKey") === "date" ? "date" : "name";
-      sortDir = localStorage.getItem("wuwa.sortDir") === "desc" ? "desc" : "asc";
     } catch (e) { /* bỏ qua */ }
   },
   save() {
@@ -38,8 +35,6 @@ const LS = {
       localStorage.setItem("wuwa.extra", JSON.stringify([...extra]));
       localStorage.setItem("wuwa.mode", mode);
       localStorage.setItem("wuwa.maxTeams", maxTeams == null ? "" : String(maxTeams));
-      localStorage.setItem("wuwa.sortKey", sortKey);
-      localStorage.setItem("wuwa.sortDir", sortDir);
     } catch (e) { /* bỏ qua */ }
   },
 };
@@ -55,10 +50,10 @@ async function load() {
   document.getElementById("maxTeams").value = maxTeams == null ? "" : maxTeams;
   buildFilters();
   syncMode();
-  syncSort();
   renderRoster();
   renderLayout();
   syncBuilder();
+  refreshPull();
 }
 
 function buildFilters() {
@@ -81,9 +76,8 @@ function syncMode() {
   document.body.classList.toggle("mode-matrix", mode === "matrix");
   // nút bấm luôn ghi rõ đang tính cho chế độ nào
   const mn = MODE_NAME[mode];
-  const ob = document.getElementById("optimizeBtn"), pb = document.getElementById("pullBtn");
+  const ob = document.getElementById("optimizeBtn");
   if (ob && !ob.disabled) ob.textContent = `⚡ Xếp team cho ${mn}`;
-  if (pb && !pb.disabled) pb.textContent = `🎯 Pull cho ${mn}`;
 }
 
 // ---------------------------------------------------------------- roster
@@ -104,25 +98,10 @@ function applyHealerDefaults() {
 const fmtDate = d => (d ? d.split("-").reverse().join("/") : "");
 
 function sortList(list) {
-  const dir = sortDir === "asc" ? 1 : -1;
-  const byName = (a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base" });
-  if (sortKey === "date") {
-    return list.sort((a, b) => {
-      if (!a.date !== !b.date) return a.date ? -1 : 1;           // chưa có ngày luôn xuống cuối
-      if (a.date !== b.date) return a.date < b.date ? -dir : dir;
-      return byName(a, b);
-    });
-  }
-  return list.sort((a, b) => dir * byName(a, b));
-}
-
-function syncSort() {
-  document.querySelectorAll("#sortSeg button").forEach(b => {
-    const k = b.dataset.sort, on = k === sortKey;
-    b.classList.toggle("active", on);
-    if (k === "name") b.textContent = on && sortDir === "desc" ? "Tên Z → A" : "Tên A → Z";
-    else b.textContent = !on ? "Ngày ra mắt"
-      : sortDir === "desc" ? "Ngày ra mắt: mới → cũ" : "Ngày ra mắt: cũ → mới";
+  return list.sort((a,b)=>{
+    if(!a.date !== !b.date) return a.date ? -1 : 1;
+    if(a.date !== b.date) return a.date < b.date ? 1 : -1;
+    return a.id-b.id;
   });
 }
 
@@ -143,7 +122,7 @@ function renderRoster() {
   box.innerHTML = list.map(r => {
     const sel = selected.has(r.id);
     return `
-    <div class="char el-${r.element} ${sel ? "selected" : ""}" data-id="${r.id}"
+    <div class="char el-${r.element} ${sel ? "selected" : ""}" data-id="${r.id}" role="button" tabindex="0" aria-pressed="${sel}"
          title="${esc(r.name)} · ${esc(r.element)}${r.date ? " · ra mắt " + fmtDate(r.date) : ""}${r.status !== "available" ? " · " + STATUS_META[r.status].label : ""}">
       <div class="tagrow">${statusTag(r.status)}</div>
       ${faceHTML(r, { size: "lg" })}
@@ -153,6 +132,7 @@ function renderRoster() {
 
   box.querySelectorAll(".char").forEach(card => {
     const id = Number(card.dataset.id);
+    card.addEventListener("keydown", e => {if(e.key === "Enter" || e.key === " "){e.preventDefault();card.click();}});
     card.addEventListener("click", () => {
       if (selected.has(id)) selected.delete(id);
       else { selected.add(id); if (isRover(id)) pickOneRover(id); }
@@ -174,15 +154,17 @@ function afterChange() {
 
 // panel "Nên pull" độc lập với panel "Xếp team": roster/chế độ đổi thì tính lại (gộp các lần bấm liên tiếp)
 let pullTimer = 0;
+let pullRevision = 0;
 function refreshPull() {
   clearTimeout(pullTimer);
-  if (!hasPull) return;
+  pullRevision++;
   if (!selected.size) { resetPullPanel(); return; }
   pullTimer = setTimeout(() => runPull(true), 250);
 }
 function resetPullPanel() {
+  pullRevision++;
   hasPull = false;
-  document.getElementById("pulls").innerHTML = '<p class="hint">Chọn Resonator rồi bấm nút để xem gợi ý.</p>';
+  document.getElementById("pulls").innerHTML = '<p class="hint">Chọn Resonator để tự động xem gợi ý.</p>';
   document.getElementById("pullTitle").textContent = "3. Nên pull ai?";
   document.getElementById("pullHint").textContent = "Gợi ý nhân vật nên pull nhất dựa trên roster bạn đã chọn.";
 }
@@ -281,25 +263,21 @@ function layoutTeamCard(t, ti) {
   // kết quả chấm điểm chỉ dùng được khi còn khớp với số người hiện tại (tránh dùng kết quả cũ của bản 2/3 cho bản 3/3)
   const ev = t.ev && !t.stale && t.ev.complete === full ? t.ev : null;
   const matched = !!(ev && ev.matched);
-  let title, pill, meta = "", alts = "";
+  let pill, meta = "", alts = "";
   if (full && t.stale) {
-    title = "Team tự xếp";
     pill = '<span class="score-pill zero">đang tính…</span>';
   } else if (full && matched) {
-    title = ev.name || "Team";
     pill = "";
     alts = slotAlts(ev, ev.order || t.members);
     meta = `${esc(ev.team_type || "")}${ev.notes ? `<br>${esc(ev.notes)}` : ""}`;
   } else if (full) {
-    title = "Team tự xếp";
     pill = '<span class="score-pill zero" title="Bộ này không có trong database">ngoài DB</span>';
     meta = "Bộ này không có trong database.";
   } else {
-    title = t.manual ? "Team tự xếp" : (matched ? ev.name || "Team" : "Team tự xếp");
     pill = `<span class="score-pill zero">${filled}/${SLOT_COUNT} · chưa đủ</span>`;
     if (!filled) meta = "Kéo nhân vật chưa dùng vào slot. Team không nhất thiết phải đủ 3 người.";
     else if (matched) {
-      meta = `Đang khớp một phần với team <span class="for">${esc(ev.name || "Team")}</span>`;
+      meta = "Đang khớp một phần với team trong database.";
       alts = ev.hints.map(h => {
         const faces = h.ids.map(i => faceHTML(byId[i], { size: "sm", off: !selected.has(i) })).join("");
         return faces ? `<span class="row"><span class="lbl">Gợi ý ${ROLE_LABELS[h.si] || "slot " + (h.si + 1)}:</span>${faces}</span>` : "";
@@ -309,7 +287,7 @@ function layoutTeamCard(t, ti) {
   }
   return `<div class="team-card ${t.manual ? "manual" : ""}" data-ti="${ti}">
     <div class="head">
-      <div class="title"><span class="rank">#${ti + 1}</span>${esc(title)}</div>
+      <div class="title"><span class="rank">#${ti + 1}</span></div>
       <div class="head-r">${pill}<button class="rm-team" data-ti="${ti}" title="Giải tán team (nhân vật về mục còn dư)">✕</button></div>
     </div>
     <div class="members">${t.members.map((_, si) => slotHTML(t, ti, si)).join("")}</div>
@@ -547,70 +525,43 @@ async function runOptimize(silent = false) {
 }
 
 // ---------------------------------------------------------------- pull advisor
-async function runPull(silent = false) {
-  if (!selected.size) {
-    if (!silent) toast("Hãy chọn Resonator đang có trước.", true);
-    return;
+function pullAnchorIds(x,owned) {
+  const comps=x.chains?.length ? x.chains : x.teams || [];
+  return [...new Set(comps.flatMap(t=>t.members.length===3 ? [t.slot1 ?? t.members[0]] : t.members.filter(id=>id!==x.id && owned.has(id))).filter(id=>id!=null))];
+}
+function groupLinkedSuggestions(list,owned=new Set()) {
+  const groups=[],byContext=new Map();
+  for(const x of list) {
+    const contexts=x.chains?.length ? x.chains.map(t=>`${t.members.length}:`+t.members.filter(id=>id!==x.id).sort((a,b)=>a-b).join(",")).sort() : (x.teams || []).filter(t=>(t.members.length===2 || t.members.length===3) && t.members.includes(x.id) && t.members.filter(id=>id!==x.id).every(id=>owned.has(id))).map(t=>`${t.members.length}:`+t.members.filter(id=>id!==x.id).sort((a,b)=>a-b).join(",")).sort();
+    const key=x.pairable && contexts.length ? (x.chains?.length ? "linked:" : "unlinked:")+JSON.stringify([...new Set(contexts)]) : "single:"+x.id;
+    if(byContext.has(key)) byContext.get(key).push(x);
+    else {const rows=[x];byContext.set(key,rows);groups.push(rows);}
   }
-  const btn = document.getElementById("pullBtn");
-  btn.disabled = true;
-  btn.textContent = "Đang tính…";
+  return groups;
+}
+function pullCardHTML(x,i,owned,showAnchors=true) {
+  const r=byId[x.id],ids=x.pairable && showAnchors ? pullAnchorIds(x,owned) : [];
+  const linked=x.pairable && !!x.chains?.length;
+  const images=ids.map(id=>faceHTML(byId[id],{size:"sm",off:!owned.has(id)})).join("");
+  return `<div class="pull-option">${faceHTML(r,{size:"lg"})}<div><div class="nm ${linked ? "pull-gold-name" : ""}">${esc(x.name)}${linked ? ' <span class="pull-star" aria-hidden="true">⭐</span>' : ""} ${r ? statusTag(r.status) : ""}</div>${images ? `<div class="pull-linked-comps">${images}</div>` : ""}</div></div>`;
+}
+function pullLinkedBoxHTML(rows,i,owned) {
+  return `<div class="pull pull-choice-box"><div class="no">${i+1}</div><div class="pull-choices">${rows.map((x,k)=>(k ? '<div class="pull-or">hoặc</div>' : "")+pullCardHTML(x,i,owned,k===0)).join("")}</div></div>`;
+}
+async function runPull(silent=true) {
+  if(!selected.size) {resetPullPanel();return;}
+  const revision=++pullRevision, snapshot=payload(), owned=new Set(snapshot.owned), requestMode=mode;
   try {
-    const d = await api("/api/pull-advisor", "POST", payload());
-    hasPull = true;
-    document.getElementById("pullTitle").innerHTML = `3. Nên pull ai cho ${modeTag(mode)}?`;
-    document.getElementById("pullHint").textContent =
-      `Tính theo luật ${MODE_NAME[mode]}${mode === "matrix" ? " (mỗi nhân vật dùng tối đa ×2)" : " (mỗi nhân vật dùng 1 lần)"}. ` +
-      `Xếp từ nên pull nhất xuống thấp dần.`;
-    document.getElementById("potLegend").innerHTML = "";
-
-    const pullCard = (x, i) => {
-      const r = byId[x.id];
-      const teams = x.teams.map(t => `<span class="mini">
-          ${t.members.map(id => faceHTML(byId[id], { size: "sm" })).join("")}</span>`).join("");
-      const sub = x.gain > 0
-        ? `Mở khóa ${x.unlocked} team`
-        : x.unlocked > 0
-          ? `Mở khóa ${x.unlocked} team`
-          : x.meta
-            ? "Chưa mở khóa team mới ngay, nhưng ghép cặp được với nhân vật đang có trong meta team"
-            : "Chưa ghép được meta team nào với roster hiện tại — xuất hiện nhờ Potential";
-      return `<div class="pull">
-        <div class="no">${i + 1}</div>
-        ${faceHTML(r, { size: "lg" })}
-        <div>
-          <div class="nm">${esc(x.name)} ${r ? statusTag(r.status) : ""}</div>
-          <div class="sub">${sub}</div>
-          ${x.meta ? `<div class="meta-note">⭐ ${x.meta.self
-            ? `Chính là DPS của meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""}`
-            : `Đưa ${x.meta.dps.map(id => `<b>${esc(byId[id]?.name || "?")}</b>`).join(" / ")} từ team alt lên meta team${x.meta.name ? ` <b>${esc(x.meta.name)}</b>` : ""}`} — ${x.meta.complete ? "đủ bộ meta" : "hoàn thành cặp, còn thiếu 1 người"}</div>` : ""}
-          ${teams ? `<div class="mini-teams">${teams}</div>` : ""}
-        </div>
-      </div>`;
-    };
-    // nhóm 1: ghép được team với nhân vật đang có; nhóm 2: "tiềm năng" = không ghép được team nào, chỉ lên nhờ điểm Potential
-    // (cả 2 nhóm đều xếp điểm pull từ cao xuống thấp — engine đã sắp sẵn)
-    const shown = d.results.filter(x => x.pull > 0);       // điểm pull <= 0 thì không hiện
-    const pairable = shown.filter(x => x.pairable);
-    const potential = shown.filter(x => !x.pairable);
-    const group = (title, hint, list, empty) => `<div class="pull-group">
-      <h3 class="sec">${title} <span class="hint">(${list.length})</span></h3>
-      <p class="hint g">${hint}</p>
-      ${list.length ? `<div class="pull-list">${list.map(pullCard).join("")}</div>` : `<p class="hint">${empty}</p>`}
-    </div>`;
-    document.getElementById("pulls").innerHTML =
-      group("Ghép được với nhân vật hiện có",
-        "Chỉ tính META team (team alt chắp vá không được dùng để gợi ý pull): roll nhân vật này sẽ lập thêm được meta team hoặc ghép được cặp chuẩn với các nhân vật bạn đang có (đã gồm cả nhân vật sắp ra mắt).",
-        pairable, "Chưa có nhân vật nào ghép được meta team với roster hiện tại.") +
-      group("Nhân vật tiềm năng",
-        "Chưa ghép được meta team nào với roster hiện tại, nhưng có Potential cao nên vẫn được gợi ý.",
-        potential, "Không có nhân vật tiềm năng nào (chấm Potential trong Admin → bảng Resonator).");
-  } catch (e) {
-    toast(e.message, true);
-  } finally {
-    btn.disabled = false;
-    syncMode();
-  }
+    const d=await api("/api/pull-advisor","POST",snapshot);
+    if(revision!==pullRevision) return;
+    hasPull=true;
+    document.getElementById("pullTitle").innerHTML=`3. Nên pull ai cho ${modeTag(requestMode)}?`;
+    document.getElementById("pullHint").textContent="Tự động cập nhật theo nhân vật bạn chọn.";
+    document.getElementById("potLegend").innerHTML="";
+    const shown=d.results.filter(x=>x.pull>0);
+    const group=(title,list,empty)=>`<div class="pull-group"><h3 class="sec">${title} <span class="hint">(${list.length})</span></h3>${list.length ? `<div class="pull-list">${groupLinkedSuggestions(list,owned).map((rows,i)=>pullLinkedBoxHTML(rows,i,owned)).join("")}</div>` : `<p class="hint">${empty}</p>`}</div>`;
+    document.getElementById("pulls").innerHTML=group("Ghép được với nhân vật hiện có",shown.filter(x=>x.pairable),"Chưa có gợi ý ghép phù hợp.")+group("Nhân vật tiềm năng",shown.filter(x=>!x.pairable),"Không có gợi ý tiềm năng.");
+  } catch(e) {if(revision===pullRevision)toast(e.message,true);}
 }
 
 // ---------------------------------------------------------------- events
@@ -647,14 +598,6 @@ document.getElementById("clearAll").addEventListener("click", () => {
   selected.clear(); extra.clear();
   afterChange();
 });
-document.querySelectorAll("#sortSeg button").forEach(b => b.addEventListener("click", () => {
-  const k = b.dataset.sort;
-  if (k === sortKey) sortDir = sortDir === "asc" ? "desc" : "asc";   // bấm lại = đảo chiều
-  else { sortKey = k; sortDir = k === "date" ? "desc" : "asc"; }     // ngày: mặc định mới nhất trước
-  syncSort();
-  LS.save();
-  renderRoster();
-}));
 document.getElementById("maxTeams").addEventListener("change", e => {
   maxTeams = parseMax(e.target.value);
   e.target.value = maxTeams == null ? "" : maxTeams;      // 0 / chữ / số âm -> về "không giới hạn"
@@ -665,76 +608,10 @@ document.getElementById("maxTeams").addEventListener("change", e => {
 document.getElementById("addTeamBtn").addEventListener("click", addTeam);
 document.getElementById("exportBtn").addEventListener("click", showPreview);
 document.getElementById("optimizeBtn").addEventListener("click", () => runOptimize(false));
-document.getElementById("pullBtn").addEventListener("click", () => runPull(false));
 
 // ---------------------------------------------------------------- kéo thả đổi độ rộng 2 panel Xếp team / Nên pull
 // - Thanh giữa 2 panel: đổi tỉ lệ rộng của Xếp team ↔ Nên pull.
 // - 2 mép ngoài: kéo ra để nới cả cụm vượt khỏi khung Resonator (nới đối xứng 2 bên), kéo vào để thu lại.
 // - Nhấp đúp vào thanh/mép để về mặc định. Lưu trong trình duyệt.
-(function initWorkResize() {
-  const grid = document.querySelector(".work-grid");
-  const split = document.getElementById("workSplit");
-  const resultEl = document.getElementById("result");
-  if (!grid || !split || !resultEl) return;
-  const KEY = "wuwa.work.layout.v1", GAP = 20, MIN_RES = 480, MIN_PULL = 300, MIN_W = 820, DEF_SPLIT = 0.7;
-  const mq = window.matchMedia("(min-width: 1100px)");
-  const st = { w: null, split: DEF_SPLIT };
-  try {
-    const o = JSON.parse(localStorage.getItem(KEY) || "{}");
-    if (o && +o.w > 0) st.w = +o.w;
-    if (o && +o.split > 0.05 && +o.split < 0.95) st.split = +o.split;
-  } catch (e) { /* bỏ qua */ }
-  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* bỏ qua */ } };
-  const maxW = () => document.documentElement.clientWidth - 24;
-  const frameW = () => { const m = grid.parentElement, cs = getComputedStyle(m); return m.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); };
-  const clampW = w => Math.max(MIN_W, Math.min(w, maxW()));
-  const clampSplit = (r, w) => { const av = w - GAP; return Math.max(MIN_RES, Math.min(r, av - MIN_PULL)) / av; };
-
-  function apply() {
-    if (!mq.matches) { grid.style.width = grid.style.marginLeft = grid.style.gridTemplateColumns = ""; return; }
-    const fw = frameW();
-    const custom = st.w != null;
-    const w = custom ? clampW(st.w) : fw;
-    grid.style.width = custom ? w + "px" : "";
-    grid.style.marginLeft = custom ? (fw - w) / 2 + "px" : "";            // giữ cụm căn giữa, tràn đều 2 bên
-    if (custom || Math.abs(st.split - DEF_SPLIT) > 1e-6) {
-      const r = clampSplit((w - GAP) * st.split, w);
-      grid.style.gridTemplateColumns = `minmax(0, ${r}fr) ${GAP}px minmax(0, ${1 - r}fr)`;
-    } else grid.style.gridTemplateColumns = "";
-  }
-
-  function makeDrag(el, onMove, onReset) {
-    el.addEventListener("dblclick", () => { onReset(); save(); apply(); });
-    el.addEventListener("pointerdown", e => {
-      if (!mq.matches || (e.pointerType === "mouse" && e.button !== 0)) return;
-      e.preventDefault();
-      el.setPointerCapture(e.pointerId);
-      const x0 = e.clientX, w0 = grid.getBoundingClientRect().width, r0 = resultEl.getBoundingClientRect().width;
-      document.body.classList.add("resizing-h"); el.classList.add("on");
-      const mv = ev => { onMove(ev.clientX - x0, w0, r0); apply(); };
-      const up = () => {
-        el.removeEventListener("pointermove", mv); el.removeEventListener("pointerup", up); el.removeEventListener("pointercancel", up);
-        document.body.classList.remove("resizing-h"); el.classList.remove("on"); save();
-      };
-      el.addEventListener("pointermove", mv); el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up);
-    });
-  }
-
-  makeDrag(split,
-    (dx, w0, r0) => { st.w = st.w == null && Math.abs(w0 - frameW()) < 1 ? null : clampW(w0); st.split = clampSplit(r0 + dx, w0); },
-    () => { st.split = DEF_SPLIT; });
-  for (const side of ["l", "r"]) {
-    const edge = document.createElement("div");
-    edge.className = "work-edge " + side;
-    edge.title = "Kéo để nới / thu rộng 2 panel ra ngoài khung · nhấp đúp để về mặc định";
-    grid.appendChild(edge);
-    makeDrag(edge,
-      (dx, w0) => { st.w = clampW(w0 + (side === "r" ? 2 * dx : -2 * dx)); },
-      () => { st.w = null; });
-  }
-  window.addEventListener("resize", apply);
-  mq.addEventListener("change", apply);
-  apply();
-})();
 
 load();

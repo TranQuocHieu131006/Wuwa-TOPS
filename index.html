@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=22">
+<link rel="stylesheet" href="static/style.css?v=210">
 </head>
 <body>
 <header class="top">
@@ -21,8 +21,8 @@
   <div class="nav-group"><button type="button" class="nav-link patch-btn" id="patchBtn" title="Lịch sử cập nhật">📢 Cập nhật<span class="dot hidden" aria-label="Có cập nhật mới"></span></button><a class="nav-link" href="admin.html">⚙ Dữ liệu team / Admin</a><a class="nav-link guide" href="https://www.tiktok.com/@hyus066" target="_blank" rel="noopener noreferrer">📖 Hướng dẫn sử dụng</a></div>
 </header>
 
-<main>
-  <section class="panel">
+<main id="optimizerShell" class="optimizer-shell">
+  <section id="rosterPanel" class="panel">
     <div class="panel-head">
       <div>
         <h2>1. Resonator của bạn</h2>
@@ -30,22 +30,19 @@
       </div>
     </div>
 
-   <div class="toolbar">
+    <div class="toolbar roster-filters">
       <input type="search" id="search" placeholder="Tìm nhân vật…">
       <div class="chip-row" id="rarChips"></div>
+    </div>
+    <div id="roster" class="roster"></div>
+    <div class="roster-actions">
       <label class="inline"><input type="checkbox" id="onlySel"> Chỉ hiện đã chọn</label>
-      <div class="seg small" id="sortSeg" title="Bấm lại nút đang chọn để đảo chiều">
-        <button data-sort="name" class="active"></button>
-        <button data-sort="date"></button>
-      </div>
       <div class="btn-pair">
         <button class="small ghost" id="selAll">Chọn tất cả</button>
-        <button class="small ghost" id="selUseful4">Chọn tất cả 4★ (hữu dụng)</button>
         <button class="small ghost danger" id="clearAll">Bỏ chọn hết</button>
+        <button class="small ghost" id="selUseful4">Chọn 4★ hữu dụng</button>
       </div>
     </div>
-
-    <div id="roster" class="roster"></div>
   </section>
 
   <div class="work-grid">
@@ -77,19 +74,14 @@
       </div>
     </section>
 
-    <div class="work-split" id="workSplit" role="separator" aria-orientation="vertical"
-         title="Kéo để đổi độ rộng 2 panel · nhấp đúp để về mặc định"></div>
 
     <section id="pullResult" class="panel">
       <div class="panel-head pull-head">
         <h2 id="pullTitle">3. Nên pull ai?</h2>
-        <div class="head-actions">
-          <button id="pullBtn">🎯 Pull cho ToA</button>
-        </div>
       </div>
       <p class="hint" id="pullHint">Gợi ý nhân vật nên pull nhất dựa trên roster bạn đã chọn.</p>
       <div id="potLegend"></div>
-      <div id="pulls"><p class="hint">Chọn Resonator rồi bấm nút để xem gợi ý.</p></div>
+      <div id="pulls"><p class="hint">Chọn Resonator để tự động xem gợi ý.</p></div>
     </section>
   </div>
 </main>
@@ -105,9 +97,9 @@
 
 <script src="static/vendor/highs.js"></script>
 <script src="static/data.js?v=8"></script>
-<script src="static/engine.js?v=204"></script>
+<script src="static/engine.js?v=222"></script>
 <script src="static/common.js?v=10"></script>
 <script src="static/patch.js?v=1"></script>
-<script src="static/app.js?v=20"></script>
+<script src="static/app.js?v=221"></script>
 </body>
 </html>
