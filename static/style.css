@@ -694,3 +694,30 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
   #result .builder-nav { padding: 12px; }
   #result .builder-nav #optimizeBtn { width: 100%; margin-left: 0; }
 }
+
+/* A quiet scroll track with a white draggable thumb. */
+#rosterPanel .roster {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.72) rgba(255,255,255,.06);
+}
+#rosterPanel .roster::-webkit-scrollbar { width: 6px; }
+#rosterPanel .roster::-webkit-scrollbar-track {
+  background: rgba(255,255,255,.06);
+  border-radius: 999px;
+}
+#rosterPanel .roster::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.72);
+  border-radius: 999px;
+  min-height: 36px;
+}
+#rosterPanel .roster::-webkit-scrollbar-thumb:hover { background: #fff; }
+#rosterPanel .roster::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+@media (min-width: 850px) {
+  #rosterPanel {
+    position: sticky;
+    top: 16px;
+    align-self: start;
+    height: calc(100dvh - 96px);
+    max-height: calc(100dvh - 96px);
+  }
+}
