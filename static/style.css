@@ -665,3 +665,32 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
 #rosterPanel .char.selected, #rosterPanel .char.selected:hover { border-color: var(--el, var(--accent)); box-shadow: 0 0 0 1px var(--el, var(--accent)), 0 0 12px color-mix(in srgb, var(--el, var(--accent)) 35%, transparent); }
 #rosterPanel .char.selected .nm { border-top-color: var(--el, var(--accent)); }
 #rosterPanel .char.selected::after { content: none; display: none; }
+
+/* Preserve roster width and scroll position while selection updates. */
+#rosterPanel .roster { scrollbar-gutter: stable; overflow-anchor: none; }
+#rosterPanel, #pulls, #teams { overflow-anchor: none; }
+
+/* Team controls stay in the builder column, clear of the screen edge. */
+#result .builder-nav {
+  position: sticky;
+  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel, #1c2236);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+#result .builder-nav .limit { flex-wrap: wrap; gap: 8px; }
+#result .builder-nav #maxTeams { width: 110px; }
+#result .builder-nav #optimizeBtn { margin-left: auto; }
+@media (max-width: 600px) {
+  #result .builder-nav { padding: 12px; }
+  #result .builder-nav #optimizeBtn { width: 100%; margin-left: 0; }
+}

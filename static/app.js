@@ -99,6 +99,10 @@ const fmtDate = d => (d ? d.split("-").reverse().join("/") : "");
 
 function sortList(list) {
   return list.sort((a,b)=>{
+    const upcoming = r => !r.released || r.status==="upcoming";
+    if(upcoming(a)!==upcoming(b)) return upcoming(a) ? 1 : -1;
+    const rarity = r => String(r.rarity).startsWith("5") ? 5 : 4;
+    if(rarity(a)!==rarity(b)) return rarity(b)-rarity(a);
     if(!a.date !== !b.date) return a.date ? -1 : 1;
     if(a.date !== b.date) return a.date < b.date ? 1 : -1;
     return a.id-b.id;
@@ -118,6 +122,8 @@ function visibleList() {
 
 function renderRoster() {
   const box = document.getElementById("roster");
+  const scrollTop = box.scrollTop;
+  const focusedId = box.contains(document.activeElement) ? document.activeElement.closest(".char")?.dataset.id : null;
   const list = visibleList();
   box.innerHTML = list.map(r => {
     const sel = selected.has(r.id);
@@ -139,17 +145,21 @@ function renderRoster() {
       afterChange();
     });
   });
+  box.scrollTop = scrollTop;
+  if(focusedId) box.querySelector(`.char[data-id="${focusedId}"]`)?.focus({preventScroll:true});
   updateCounter();
 }
 
 function updateCounter() { /* đã bỏ dòng đếm số nhân vật đã chọn */ }
 
 function afterChange() {
+  const pageX=window.scrollX,pageY=window.scrollY;
   applyHealerDefaults();
   LS.save();
   renderRoster();
   refreshLayout();
   refreshPull();
+  if(window.scrollX!==pageX || window.scrollY!==pageY) window.scrollTo({left:pageX,top:pageY,behavior:"instant"});
 }
 
 // panel "Nên pull" độc lập với panel "Xếp team": roster/chế độ đổi thì tính lại (gộp các lần bấm liên tiếp)
@@ -526,8 +536,14 @@ async function runOptimize(silent = false) {
 
 // ---------------------------------------------------------------- pull advisor
 function pullAnchorIds(x,owned) {
-  const comps=x.chains?.length ? x.chains : x.teams || [];
-  return [...new Set(comps.flatMap(t=>t.members.length===3 ? [t.slot1 ?? t.members[0]] : t.members.filter(id=>id!==x.id && owned.has(id))).filter(id=>id!=null))];
+  const linked=!!x.chains?.length;
+  const comps=linked ? x.chains : x.teams || [];
+  return [...new Set(comps.flatMap(t=>{
+    const slot1=t.slot1 ?? t.members[0];
+    if(!linked) return [slot1];
+    if(t.members.length===3 && slot1!==x.id) return [slot1];
+    return t.members.filter(id=>id!==x.id && owned.has(id));
+  }).filter(id=>id!=null))];
 }
 function groupLinkedSuggestions(list,owned=new Set()) {
   const groups=[],byContext=new Map();
@@ -582,15 +598,6 @@ document.getElementById("selAll").addEventListener("click", () => {
   if (isRover(r.id) && [...selected].some(isRover)) return;   // chỉ giữ 1 bản Rover
   selected.add(r.id);
 });
-  afterChange();
-});
-// chọn tất cả nhân vật 4★ hữu dụng: 4★, đã ra mắt, đã chấm Potential và khác hạng F (không phụ thuộc bộ lọc đang bật)
-document.getElementById("selUseful4").addEventListener("click", () => {
-  resonators.forEach(r => {
-    if (r.rarity !== "4★" || !r.released) return;
-    if (!r.potential || r.potential === "F") return;
-    selected.add(r.id);
-  });
   afterChange();
 });
 document.getElementById("clearAll").addEventListener("click", () => {

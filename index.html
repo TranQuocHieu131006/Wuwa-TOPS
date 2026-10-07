@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=210">
+<link rel="stylesheet" href="static/style.css?v=225">
 </head>
 <body>
 <header class="top">
@@ -40,7 +40,6 @@
       <div class="btn-pair">
         <button class="small ghost" id="selAll">Chọn tất cả</button>
         <button class="small ghost danger" id="clearAll">Bỏ chọn hết</button>
-        <button class="small ghost" id="selUseful4">Chọn 4★ hữu dụng</button>
       </div>
     </div>
   </section>
@@ -52,10 +51,7 @@
           <h2 id="resultTitle">2. Xếp team</h2>
           <p class="hint">Các team tối ưu từ database, không nhân vật nào bị dùng quá số lần cho phép.</p>
         </div>
-        <div class="head-actions">
-          <label class="inline limit" title="Để trống = không giới hạn. Nếu lớn hơn số team xếp được thì chỉ hiện các team xếp được.">Giới hạn số team <input type="number" id="maxTeams" min="1" step="1" inputmode="numeric" placeholder="Không giới hạn"></label>
-          <button class="primary" id="optimizeBtn">⚡ Xếp team</button>
-        </div>
+
       </div>
       <div id="approxWarn" class="warn hidden">Roster quá lớn nên kết quả là gần-tối-ưu (heuristic), không phải tối ưu tuyệt đối.</div>
       <p id="limitNote" class="hint hidden"></p>
@@ -72,6 +68,10 @@
       <h3 class="sec">Gợi ý team cho nhân vật dư <span class="hint">(nhân vật chưa có hiển thị tối đen)</span></h3>
       <div id="incomplete" class="team-grid"></div>
       </div>
+      <nav class="builder-nav" aria-label="Điều khiển xếp team">
+          <label class="inline limit" title="Để trống = không giới hạn. Nếu lớn hơn số team xếp được thì chỉ hiện các team xếp được.">Giới hạn số team <input type="number" id="maxTeams" min="1" step="1" inputmode="numeric" placeholder="Không giới hạn"></label>
+          <button class="primary" id="optimizeBtn">⚡ Xếp team</button>
+      </nav>
     </section>
 
 
@@ -97,9 +97,9 @@
 
 <script src="static/vendor/highs.js"></script>
 <script src="static/data.js?v=8"></script>
-<script src="static/engine.js?v=222"></script>
+<script src="static/engine.js?v=224"></script>
 <script src="static/common.js?v=10"></script>
 <script src="static/patch.js?v=1"></script>
-<script src="static/app.js?v=221"></script>
+<script src="static/app.js?v=225"></script>
 </body>
 </html>

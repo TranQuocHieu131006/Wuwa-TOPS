@@ -138,7 +138,14 @@
             && (other.slots.filter(slot=>slot.length).length===2
               || (other.pairs || []).some(pair=>pair.includes(anchor) && pair.includes(id)
                 && pair.every(member=>owned.has(member))))));
-        matches.push(!satisfied);
+        const proposedScore=r2(Math.max(Number(t.score)
+          - slotPenalty(t,ai,t.slots[ai].indexOf(anchor))
+          - slotPenalty(t,si,t.slots[si].indexOf(x)),SCORE_MIN_EFF));
+        const coveredByFullTeam=templates.some(other=>other.kind==="meta" && other.active
+          && other.slots.every(slot=>slot.length)
+          && expandTemplate(other,owned).some(comp=>comp.ids.includes(anchor)
+            && comp.score>=proposedScore));
+        matches.push(!satisfied && !coveredByFullTeam);
       }
     }
     return !matches.length || matches.some(Boolean);
