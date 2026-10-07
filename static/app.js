@@ -228,16 +228,13 @@ function teamCard(t, idx) {
 }
 
 function incompleteCard(x) {
-  const missing = x.members.filter(m => m.missing).length;
   return `<div class="team-card">
     <div class="head">
       <div class="title">${esc(x.name || "Team")}</div>
     </div>
     ${renderMembers(x.members.map(m => m.id), x.members)}
     ${slotAlts(x, x.members.map(m => m.id))}
-    <div class="card-meta">${esc(x.team_type || "")}
-      · dành cho <span class="for">${x.for.map(i => esc(byId[i]?.name || "?")).join(", ")}</span>
-      · ${missing ? `thiếu ${missing} nhân vật` : "đủ người (nhưng một số đã dùng ở team khác)"}</div>
+    ${x.team_type ? `<div class="card-meta">${esc(x.team_type)}</div>` : ""}
   </div>`;
 }
 
@@ -601,7 +598,6 @@ document.getElementById("selAll").addEventListener("click", () => {
   afterChange();
 });
 document.getElementById("clearAll").addEventListener("click", () => {
-  if (selected.size && !confirm("Bỏ chọn tất cả nhân vật?")) return;
   selected.clear(); extra.clear();
   afterChange();
 });
