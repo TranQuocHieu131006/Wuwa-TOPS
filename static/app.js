@@ -77,7 +77,7 @@ function syncMode() {
   // nút bấm luôn ghi rõ đang tính cho chế độ nào
   const mn = MODE_NAME[mode];
   const ob = document.getElementById("optimizeBtn");
-  if (ob && !ob.disabled) ob.textContent = `⚡ Xếp team cho ${mn}`;
+  if (ob && !ob.disabled) ob.textContent = `⚡ Xếp team ${mn}`;
 }
 
 // ---------------------------------------------------------------- roster
@@ -618,3 +618,14 @@ document.getElementById("optimizeBtn").addEventListener("click", () => runOptimi
 // - Nhấp đúp vào thanh/mép để về mặc định. Lưu trong trình duyệt.
 
 load();
+
+// Anchor the desktop roster below the header, independent of page scrolling.
+function syncRosterAnchor() {
+  const header = document.querySelector("header.top");
+  if (header) document.documentElement.style.setProperty("--roster-top", `${Math.ceil(header.getBoundingClientRect().height) + 24}px`);
+}
+syncRosterAnchor();
+window.addEventListener("resize", syncRosterAnchor);
+if (typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(syncRosterAnchor).observe(document.querySelector("header.top"));
+}
