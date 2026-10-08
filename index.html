@@ -4,15 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=226">
+<link rel="stylesheet" href="static/style.css?v=228">
 </head>
 <body>
 <header class="top">
   <div class="head-left">
-    <div class="seg" id="modeSeg">
-      <button data-mode="toa" class="active">ToA</button>
-      <button data-mode="matrix">Matrix</button>
-    </div>
+
     <div>
       <h1>WuWa <span>Account Optimizer</span></h1>
       <p>Chọn Resonator đang có → xếp team tối ưu → biết nên roll ai tiếp theo.</p>
@@ -59,7 +56,7 @@
       <h3 class="sec">Các team được chọn <span class="hint">(kéo thả để chỉnh)</span></h3>
       <p class="hint dnd-hint">Xếp tự do hoàn toàn: kéo nhân vật vào bất kỳ slot nào, giữa các team, hoặc từ “Nhân vật còn dư”. Không có ràng buộc vai trò. Có thể xếp tay ngay cả khi chưa bấm “Xếp team”.</p>
       <div id="teams" class="team-grid"></div>
-      <div class="add-team-row"><button class="ghost" id="addTeamBtn">＋ Add new team</button><button class="export" id="exportBtn">👁 Preview team</button></div>
+      <div class="add-team-row"><button class="ghost" id="addTeamBtn">＋ Add new team</button></div>
 
       <h3 class="sec">Nhân vật còn dư <span class="hint">(kéo vào slot trống của team)</span></h3>
       <div id="leftover" class="leftover"></div>
@@ -69,8 +66,15 @@
       <div id="incomplete" class="team-grid"></div>
       </div>
       <nav class="builder-nav" aria-label="Điều khiển xếp team">
+    <div class="seg" id="modeSeg">
+      <button data-mode="toa" class="active">ToA</button>
+      <button data-mode="matrix">Matrix</button>
+    </div>
+          <div class="builder-actions">
           <label class="inline limit" title="Để trống = không giới hạn. Nếu lớn hơn số team xếp được thì chỉ hiện các team xếp được.">Giới hạn số team <input type="number" id="maxTeams" min="1" step="1" inputmode="numeric" placeholder="Không giới hạn"></label>
           <button class="primary" id="optimizeBtn">⚡ Xếp team</button>
+          <button class="export" id="exportBtn">Preview team</button>
+          </div>
       </nav>
     </section>
 
@@ -100,6 +104,6 @@
 <script src="static/engine.js?v=224"></script>
 <script src="static/common.js?v=10"></script>
 <script src="static/patch.js?v=1"></script>
-<script src="static/app.js?v=226"></script>
+<script src="static/app.js?v=228"></script>
 </body>
 </html>
