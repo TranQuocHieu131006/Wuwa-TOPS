@@ -677,7 +677,7 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
   z-index: 8;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   flex-wrap: wrap;
   gap: 12px;
   margin: 24px 0;
@@ -689,10 +689,13 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
 }
 #result .builder-nav .limit { flex-wrap: wrap; gap: 8px; }
 #result .builder-nav #maxTeams { width: 110px; }
-#result .builder-nav #optimizeBtn { margin-left: auto; }
+#result .builder-nav #optimizeBtn,
+#result .builder-nav #exportBtn { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
+#result .builder-nav #exportBtn { padding: 9px 12px; border-color: var(--accent); background: rgba(91,140,255,.18); font-weight: 700; }
+#result .builder-nav #exportBtn:hover { background: rgba(91,140,255,.32); }
 @media (max-width: 600px) {
   #result .builder-nav { padding: 12px; }
-  #result .builder-nav #optimizeBtn { width: 100%; margin-left: 0; }
+  #result .builder-nav .limit { flex-basis: 100%; justify-content: center; }
 }
 
 /* A quiet scroll track with a white draggable thumb. */
@@ -712,12 +715,33 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
 }
 #rosterPanel .roster::-webkit-scrollbar-thumb:hover { background: #fff; }
 #rosterPanel .roster::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+/* Keep the scrollbar halfway across the panel's right-hand padding. */
+#rosterPanel .roster { scrollbar-gutter: stable; margin-right: -8px; padding-right: 10px; }
+#rosterPanel .roster-actions { justify-items: start; }
+#rosterPanel .roster-actions .btn-pair { justify-content: flex-start; }
 @media (min-width: 850px) {
   #rosterPanel {
-    position: sticky;
-    top: 16px;
-    align-self: start;
-    height: calc(100dvh - 96px);
-    max-height: calc(100dvh - 96px);
+    position: fixed;
+    left: 20px;
+    top: var(--roster-top, 110px);
+    width: 320px;
+    height: calc(100dvh - var(--roster-top, 110px) - 86px);
+    max-height: calc(100dvh - var(--roster-top, 110px) - 86px);
   }
+  .optimizer-shell #result { grid-column: 2; grid-row: 1; }
+  .optimizer-shell #pullResult { grid-column: 3; grid-row: 1; }
 }
+@media (min-width: 1600px) { #rosterPanel { width: 350px; } }
+@media (min-width: 850px) and (max-width: 1199px) {
+  #rosterPanel { width: 300px; }
+  .optimizer-shell #pullResult { grid-column: 2; grid-row: 2; }
+}
+#result .builder-nav { justify-content: space-between; }
+#result .builder-nav #modeSeg { flex: 0 0 auto; }
+#result .builder-actions { margin-left: auto; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 12px; min-width: 0; }
+@media (max-width: 600px) {
+  #result .builder-actions { gap: 8px; }
+  #result .builder-actions .limit { justify-content: flex-end; }
+}
+/* Match the header to the full-width three-panel layout. */
+header.top { padding-inline: 20px; }
