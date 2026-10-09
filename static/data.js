@@ -51,7 +51,7 @@ window.WUWA_DATA = {
   {"id":48,"name":"Suisui","rarity":"5★","element":"Glacio","released":1,"slug":"suisui","role":"Healer","date":"2026-07-30","status":"available","potential":"S"},
   {"id":49,"name":"Suoming","rarity":"5★","element":"Electro","released":0,"slug":"suoming","role":"DPS","date":"","status":"upcoming","potential":"S"},
   {"id":50,"name":"Taoqi","rarity":"4★","element":"Havoc","released":1,"slug":"taoqi","role":"supDPS","date":"2024-05-22","status":"available","potential":"D"},
-  {"id":51,"name":"The Shorekeeper","rarity":"5★","element":"Spectro","released":1,"slug":"the-shorekeeper","role":"Healer","date":"2024-09-29","status":"available","potential":"S"},
+  {"id":51,"name":"Shorekeeper","rarity":"5★","element":"Spectro","released":1,"slug":"the-shorekeeper","role":"Healer","date":"2024-09-29","status":"available","potential":"S"},
   {"id":52,"name":"Verina","rarity":"5★","element":"Spectro","released":1,"slug":"verina","role":"Healer","date":"2024-05-19","status":"available","potential":"A"},
   {"id":53,"name":"Xiangli Yao","rarity":"5★","element":"Electro","released":1,"slug":"xiangli-yao","role":"DPS","date":"2024-09-02","status":"available","potential":"C"},
   {"id":54,"name":"Yangyang","rarity":"4★","element":"Aero","released":1,"slug":"yangyang","role":"supDPS","date":"2024-05-22","status":"available","potential":"D"},
