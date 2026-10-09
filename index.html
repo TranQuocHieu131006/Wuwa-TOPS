@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=233">
+<link rel="stylesheet" href="static/style.css?v=234-ui">
 </head>
 <body>
 <header class="top">
@@ -29,16 +29,17 @@
 
     <div class="toolbar roster-filters">
       <input type="search" id="search" placeholder="Tìm nhân vật…">
-      <div class="chip-row" id="rarChips"></div>
+      <div class="roster-top-actions">
+        <div class="chip-row" id="rarChips"></div>
+        <div class="btn-pair">
+          <button class="small ghost" id="selAll">Chọn tất cả</button>
+          <button class="small ghost danger" id="clearAll">Bỏ chọn hết</button>
+        </div>
+      </div>
+      <input type="checkbox" id="onlySel" hidden aria-hidden="true" tabindex="-1">
     </div>
     <div id="roster" class="roster"></div>
-    <div class="roster-actions">
-      <label class="inline"><input type="checkbox" id="onlySel"> Chỉ hiện đã chọn</label>
-      <div class="btn-pair">
-        <button class="small ghost" id="selAll">Chọn tất cả</button>
-        <button class="small ghost danger" id="clearAll">Bỏ chọn hết</button>
-      </div>
-    </div>
+
   </nav>
 
   <div class="work-grid">
