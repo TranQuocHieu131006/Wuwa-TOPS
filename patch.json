@@ -1,6 +1,13 @@
 {
   "patches": [
     {
+      "version": "2.1.4",
+      "date": "2026-10-9 16:00",
+      "content": [
+        "Sửa UI tab, xóa chỉ hiện đã chọn"
+      ]
+    },
+    {
       "version": "2.1.3",
       "date": "2026-10-9 10:00",
       "content": [
