@@ -43,7 +43,7 @@ window.WUWA_DATA = {
   {"id":40,"name":"Rebecca","rarity":"5★","element":"Electro","released":1,"slug":"rebecca","role":"supDPS","date":"2026-06-08","status":"limited","potential":"D"},
   {"id":41,"name":"Roccia","rarity":"5★","element":"Havoc","released":1,"slug":"roccia","role":"supDPS","date":"2025-01-23","status":"available","potential":"A"},
   {"id":42,"name":"Rover (Aero)","rarity":"5★","element":"Aero","released":1,"slug":"rover-aero","role":"supDPS","date":"2024-01-01","status":"available","potential":"D"},
-  {"id":43,"name":"Rover (Electro)","rarity":"5★","element":"Electro","released":1,"slug":"rover-electro","role":"supDPS","date":"2024-01-01","status":"available","potential":"D"},
+  {"id":43,"name":"Rover (Electro)","rarity":"5★","element":"Electro","released":1,"slug":"rover-electro","role":"supDPS","date":"2024-01-02","status":"available","potential":"D"},
   {"id":44,"name":"Rover (Havoc)","rarity":"5★","element":"Havoc","released":1,"slug":"rover-havoc","role":"DPS","date":"2024-01-01","status":"available","potential":"D"},
   {"id":45,"name":"Rover (Spectro)","rarity":"5★","element":"Spectro","released":1,"slug":"rover-spectro","role":"supDPS","date":"2024-01-01","status":"available","potential":"D"},
   {"id":46,"name":"Sanhua","rarity":"4★","element":"Glacio","released":1,"slug":"sanhua","role":"supDPS","date":"2024-05-22","status":"available","potential":"A"},
