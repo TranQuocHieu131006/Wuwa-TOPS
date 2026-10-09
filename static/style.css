@@ -614,7 +614,7 @@ body.resizing-h .panel { pointer-events: none; }
 .pull-or { color: var(--muted); font-size: 12px; margin: 9px 0 9px 66px; }
 
 /* Main screen: roster / team builder / automatic Pull. */
-main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: grid; grid-template-columns: 320px minmax(0,1fr) minmax(300px, .65fr); gap: 18px; align-items: start; margin: 24px auto 100px; }
+main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: grid; grid-template-columns: 320px minmax(0,1fr) minmax(300px, .65fr); gap: 18px; align-items: start; margin: 24px auto 20px; }
 .optimizer-shell .work-grid { display: contents; }
 .optimizer-shell > .panel, .optimizer-shell .work-grid > .panel { min-width: 0; margin-bottom: 0; }
 #rosterPanel { padding: 16px; position: sticky; top: 20px; max-height: calc(100dvh - 110px); display: grid; grid-template-rows: auto auto minmax(0,1fr) auto; gap: 12px; }
@@ -673,7 +673,7 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
 /* Team controls stay in the builder column, clear of the screen edge. */
 #result .builder-nav {
   position: sticky;
-  bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
   z-index: 8;
   display: flex;
   align-items: center;
@@ -725,8 +725,8 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
     left: 20px;
     top: var(--roster-top, 110px);
     width: 320px;
-    height: calc(100dvh - var(--roster-top, 110px) - 86px);
-    max-height: calc(100dvh - var(--roster-top, 110px) - 86px);
+    height: calc(100dvh - var(--roster-top, 110px) - 20px);
+    max-height: calc(100dvh - var(--roster-top, 110px) - 20px);
   }
   .optimizer-shell #result { grid-column: 2; grid-row: 1; }
   .optimizer-shell #pullResult { grid-column: 3; grid-row: 1; }
@@ -745,3 +745,24 @@ main.optimizer-shell { max-width: none; width: 100%; padding: 0 20px; display: g
 }
 /* Match the header to the full-width three-panel layout. */
 header.top { padding-inline: 20px; }
+
+/* Index polish: matching titles and compact navigation controls. */
+.optimizer-shell #rosterPanel .panel-head h2,
+.optimizer-shell #result .panel-head h2,
+.optimizer-shell #pullResult .panel-head h2 { font-size: 24px; }
+header.top .nav-group { margin-left: auto; justify-content: flex-end; }
+.float-nav .fn { border-radius: 12px; }
+#result .builder-nav #maxTeams { width: 72px; padding: 8px 6px; font-size: 14px; }
+#modeSeg button.active[data-mode="toa"] { background: var(--accent); color: #fff; }
+body.mode-matrix #modeSeg button.active[data-mode="matrix"] {
+  background: brown;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255,107,129,.5);
+}
+
+/* Matrix uses the same brown for the mode and optimize buttons. */
+body.mode-matrix #optimizeBtn {
+  background: brown;
+  color: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(255,107,129,.5);
+}
