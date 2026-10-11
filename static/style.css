@@ -786,3 +786,5 @@ body.mode-matrix #modeSeg button.active[data-mode="matrix"] {
 .exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 152px; row-gap: 18px; width: max-content; }
 .exp-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
 body.mode-matrix .exp-footer .primary { background: #412536; color: #fff; }
+.exp-overlay { align-items: center; }
+.exp-box { margin: auto; }
