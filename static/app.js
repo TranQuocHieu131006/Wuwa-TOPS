@@ -504,19 +504,29 @@ function showPreview() {
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
 }
 
-// Keep PNG geometry identical to the two-column preview, including empty slots.
+// PNG lấy kích thước / khoảng cách / bo góc trực tiếp từ preview đang hiển thị (đo bằng DOM),
+// nên chỉnh CSS .exp-grid / .exp-team / .face ... thì ảnh tải về tự khớp, không cần sửa số trong code.
 async function downloadPreviewImage(teams, overlay, previewMode) {
-  const size = 72, slotGap = 8, columnGap = 76, rowGap = 18, padding = 18;
-  const teamWidth = size * 3 + slotGap * 2;
-  const width = padding * 2 + teamWidth * 2 + columnGap;
-  const height = padding * 2 + Math.ceil(teams.length / 2) * size
-    + (Math.ceil(teams.length / 2) - 1) * rowGap;
+  const shot = overlay.querySelector(".exp-shot");
+  const grid = overlay.querySelector(".exp-grid");
+  const gridRect = grid.getBoundingClientRect();
+  const cs = getComputedStyle(shot);
+  const padL = parseFloat(cs.paddingLeft) || 0, padR = parseFloat(cs.paddingRight) || 0;
+  const padT = parseFloat(cs.paddingTop) || 0, padB = parseFloat(cs.paddingBottom) || 0;
+  // vị trí từng ô (nhân vật hoặc ô trống) theo đúng thứ tự trong preview
+  const cells = [...grid.querySelectorAll(".exp-team")].map(row => [...row.children].map(el => {
+    const rc = el.getBoundingClientRect();
+    return { x: rc.left - gridRect.left + padL, y: rc.top - gridRect.top + padT, w: rc.width, h: rc.height,
+             radius: parseFloat(getComputedStyle(el).borderTopLeftRadius) || 16 };
+  }));
+  const width = Math.round(gridRect.width + padL + padR);
+  const height = Math.round(gridRect.height + padT + padB);
   const canvas = document.createElement("canvas");
   canvas.width = width * 2; canvas.height = height * 2;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Trình duyệt không hỗ trợ tạo ảnh.");
   ctx.scale(2, 2);
-  ctx.fillStyle = getComputedStyle(overlay.querySelector(".exp-shot")).backgroundColor;
+  ctx.fillStyle = cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)" ? cs.backgroundColor : "#0d1220";
   ctx.fillRect(0, 0, width, height);
   const images = new Map();
   let missing = 0;
@@ -550,20 +560,21 @@ async function downloadPreviewImage(teams, overlay, previewMode) {
     images.set(id, got);
   }));
   teams.forEach((team, index) => {
-    const x = padding + (index % 2) * (teamWidth + columnGap);
-    const y = padding + Math.floor(index / 2) * (size + rowGap);
     team.members.forEach((id, slot) => {
       if (id == null) return;
-      const r = byId[id], img = images.get(id), left = x + slot * (size + slotGap);
+      const box = cells[index] && cells[index][slot];
+      if (!box) return;
+      const r = byId[id], img = images.get(id);
+      const { x: left, y, w, h, radius } = box;
       ctx.save();
-      ctx.beginPath(); ctx.roundRect(left, y, size, size, 16); ctx.clip();
-      ctx.fillStyle = "#0b0f1b"; ctx.fillRect(left, y, size, size);
+      ctx.beginPath(); ctx.roundRect(left, y, w, h, radius); ctx.clip();
+      ctx.fillStyle = "#0b0f1b"; ctx.fillRect(left, y, w, h);
       const crop = Math.min(img.naturalWidth, img.naturalHeight);
       ctx.drawImage(img, (img.naturalWidth - crop) / 2, (img.naturalHeight - crop) / 2,
-        crop, crop, left + 2, y + 2, size - 4, size - 4);
+        crop, crop, left + 2, y + 2, w - 4, h - 4);
       ctx.restore();
       ctx.strokeStyle = EL_COLOR[r.element] || "#5b8cff";
-      ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(left + 1, y + 1, size - 2, size - 2, 15); ctx.stroke();
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(left + 1, y + 1, w - 2, h - 2, Math.max(radius - 1, 0)); ctx.stroke();
     });
   });
   const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
