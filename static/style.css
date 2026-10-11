@@ -778,3 +778,11 @@ body.mode-matrix #modeSeg button.active[data-mode="matrix"] {
 #rosterPanel .roster-top-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; width: 100%; }
 #rosterPanel .roster-top-actions .btn-pair { margin-left: auto; gap: 5px; }
 #rosterPanel .roster-top-actions button { font-size: 11px; padding: 7px 6px; }
+
+/* Preview matches the active index theme and uses two team columns. */
+#rosterPanel #search { max-width: none; width: 100%; }
+.exp-box { min-width: 0; }
+.exp-shot { display: block; max-width: 100%; overflow-x: auto; background: var(--panel); }
+.exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 152px; row-gap: 18px; width: max-content; }
+.exp-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
+body.mode-matrix .exp-footer .primary { background: #412536; color: #fff; }
