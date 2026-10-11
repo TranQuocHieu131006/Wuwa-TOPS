@@ -469,24 +469,110 @@ function applyDrop(src, tgt) {
   document.addEventListener("pointercancel", end);
 })();
 
-// ---------------------------------------------------------------- preview team (chỉ xem trên web, không tải ảnh)
+// ---------------------------------------------------------------- preview team and PNG download
 function showPreview() {
   const teams = layout.filter(t => t.members.some(x => x != null));
   if (!teams.length) return toast("Chưa có team nào để xem preview.", true);
   document.getElementById("exportPrev")?.remove();
   const ov = document.createElement("div");
   ov.id = "exportPrev"; ov.className = "exp-overlay";
+  const previewMode = mode;
+  const theme = getComputedStyle(document.getElementById("result"));
+  ["--panel", "--panel2", "--bg2", "--line"].forEach(key => ov.style.setProperty(key, theme.getPropertyValue(key)));
   ov.innerHTML = `<div class="exp-box">
     <div class="exp-note"><b>Preview team</b><button class="small ghost" id="expClose">Đóng ✕</button></div>
     <div class="exp-shot"><div class="exp-grid">${teams.map(t => `<div class="exp-team">${
       t.members.map(id => id != null ? faceHTML(byId[id], { size: "lg" }) : '<span class="exp-blank"></span>').join("")}</div>`).join("")}</div></div>
   </div>`;
+  const footer = document.createElement("div");
+  footer.className = "exp-footer";
+  footer.innerHTML = '<button type="button" class="primary" id="expDownload">↓ Tải về ảnh</button>';
+  ov.querySelector(".exp-box").appendChild(footer);
   document.body.appendChild(ov);
+  footer.querySelector("button").addEventListener("click", async e => {
+    const button = e.currentTarget;
+    button.disabled = true;
+    button.textContent = "Đang tạo ảnh…";
+    try { await downloadPreviewImage(teams, ov, previewMode); }
+    catch (error) { toast("Không tải được ảnh: " + error.message, true); }
+    finally { button.disabled = false; button.textContent = "↓ Tải về ảnh"; }
+  });
   const close = () => { ov.remove(); document.removeEventListener("keydown", onKey); };
   const onKey = e => { if (e.key === "Escape") close(); };
   document.addEventListener("keydown", onKey);
   ov.querySelector("#expClose").addEventListener("click", close);
   ov.addEventListener("click", e => { if (e.target === ov) close(); });
+}
+
+// Keep PNG geometry identical to the two-column preview, including empty slots.
+async function downloadPreviewImage(teams, overlay, previewMode) {
+  const size = 72, slotGap = 8, columnGap = 76, rowGap = 18, padding = 18;
+  const teamWidth = size * 3 + slotGap * 2;
+  const width = padding * 2 + teamWidth * 2 + columnGap;
+  const height = padding * 2 + Math.ceil(teams.length / 2) * size
+    + (Math.ceil(teams.length / 2) - 1) * rowGap;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * 2; canvas.height = height * 2;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Trình duyệt không hỗ trợ tạo ảnh.");
+  ctx.scale(2, 2);
+  ctx.fillStyle = getComputedStyle(overlay.querySelector(".exp-shot")).backgroundColor;
+  ctx.fillRect(0, 0, width, height);
+  const images = new Map();
+  let missing = 0;
+  const ids = [...new Set(teams.flatMap(t => t.members).filter(id => id != null))];
+  await Promise.all(ids.map(async id => {
+    const r = byId[id];
+    const load = src => new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      const timer = setTimeout(() => reject(new Error("timeout")), 8000);
+      img.onload = () => { clearTimeout(timer); resolve(img); };
+      img.onerror = () => { clearTimeout(timer); reject(new Error("blocked")); };
+      img.src = src;
+    });
+    // Canvas chỉ xuất được PNG khi ảnh có header CORS. CDN Prydwen thường không có, nên:
+    // 1) thử tải trực tiếp, 2) nếu bị chặn thì đi qua proxy ảnh có CORS (wsrv.nl / weserv.nl), 3) cuối cùng mới dùng chữ viết tắt.
+    const remote = r.remote || r.img;
+    const sources = [remote];
+    if (/^https?:/i.test(remote)) {
+      const enc = encodeURIComponent(remote);
+      sources.push(`https://wsrv.nl/?url=${enc}&output=png`, `https://images.weserv.nl/?url=${enc}&output=png`);
+    }
+    let got = null;
+    for (const src of sources) {
+      try { got = await load(src); break; } catch (_) { /* thử nguồn tiếp theo */ }
+    }
+    if (!got) {
+      missing++;
+      got = await load(initialsSvg(r.name, EL_COLOR[r.element] || "#5b8cff"));
+    }
+    images.set(id, got);
+  }));
+  teams.forEach((team, index) => {
+    const x = padding + (index % 2) * (teamWidth + columnGap);
+    const y = padding + Math.floor(index / 2) * (size + rowGap);
+    team.members.forEach((id, slot) => {
+      if (id == null) return;
+      const r = byId[id], img = images.get(id), left = x + slot * (size + slotGap);
+      ctx.save();
+      ctx.beginPath(); ctx.roundRect(left, y, size, size, 16); ctx.clip();
+      ctx.fillStyle = "#0b0f1b"; ctx.fillRect(left, y, size, size);
+      const crop = Math.min(img.naturalWidth, img.naturalHeight);
+      ctx.drawImage(img, (img.naturalWidth - crop) / 2, (img.naturalHeight - crop) / 2,
+        crop, crop, left + 2, y + 2, size - 4, size - 4);
+      ctx.restore();
+      ctx.strokeStyle = EL_COLOR[r.element] || "#5b8cff";
+      ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(left + 1, y + 1, size - 2, size - 2, 15); ctx.stroke();
+    });
+  });
+  const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Không tạo được file PNG.");
+  const url = URL.createObjectURL(blob), link = document.createElement("a");
+  link.href = url; link.download = `Wuwa-teams-${previewMode}.png`;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  if (missing) toast(`${missing} ảnh không tải được; đã dùng tên viết tắt thay thế.`, true);
 }
 
 // ---------------------------------------------------------------- optimize
