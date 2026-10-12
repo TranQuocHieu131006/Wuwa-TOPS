@@ -4,6 +4,13 @@ const EL_COLOR = {
   Aero: "#4be3b0", Electro: "#b66dff", Fusion: "#ff7a4d",
   Glacio: "#4cb8ff", Havoc: "#ec4f9c", Spectro: "#f3e05a",
 };
+// Biểu tượng hệ (tải trực tiếp từ CDN Prydwen, giống ảnh nhân vật)
+const elementIconUrl = el => `https://cdn.prydwen.gg/images/wuthering-waves/icons/element_${String(el).toLowerCase()}.webp`;
+function elementIconHTML(el, cls = "el-ico") {
+  const c = EL_COLOR[el] || "#5b8cff";
+  return `<img class="${cls}" src="${elementIconUrl(el)}" alt="${esc(el)}" loading="lazy"
+    onerror="this.replaceWith(Object.assign(document.createElement('b'),{className:'el-ico-fb',textContent:'${esc(el).slice(0, 2)}',style:'color:${c}'}))">`;
+}
 const ROLE_LABELS = ["DPS", "Sub-DPS", "Support"];
 // vai trò của Resonator (lưu trong data: DPS / supDPS / Healer)
 const ROLES = ["DPS", "supDPS", "Healer"];

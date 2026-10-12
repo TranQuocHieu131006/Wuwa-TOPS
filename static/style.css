@@ -783,8 +783,24 @@ body.mode-matrix #modeSeg button.active[data-mode="matrix"] {
 #rosterPanel #search { max-width: none; width: 100%; }
 .exp-box { min-width: 0; }
 .exp-shot { display: block; max-width: 100%; overflow-x: auto; background: var(--panel); }
-.exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 152px; row-gap: 18px; width: max-content; }
+.exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 76px; row-gap: 18px; width: max-content; }
 .exp-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
 body.mode-matrix .exp-footer .primary { background: #412536; color: #fff; }
-.exp-overlay { align-items: center; }
-.exp-box { margin: auto; }
+
+/* Rover's arc is a viewport overlay so roster scrolling cannot clip it. */
+.char.rover { position: relative; }
+.rv-arc { position: fixed; z-index: 11000; pointer-events: none; }
+.rv-arc::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+.rv-arc .rv-opt {
+  position: absolute; width: 35px; height: 35px; transform: translate(-50%, -50%);
+  pointer-events: auto; padding: 4px; border-radius: 50%;
+  border: 2px solid var(--c); background: #131a2c;
+  box-shadow: 0 4px 14px rgba(0,0,0,.6); display: grid; place-items: center;
+}
+.rv-arc .rv-opt:hover, .rv-arc .rv-opt:focus-visible { background: color-mix(in srgb, var(--c) 25%, #131a2c); box-shadow: 0 0 14px var(--c); outline: 2px solid white; outline-offset: 2px; }
+.rv-arc .rv-opt.on { background: color-mix(in srgb, var(--c) 35%, #131a2c); box-shadow: 0 0 12px var(--c); }
+.rv-opt img, .el-ico { width: 100%; height: 100%; object-fit: contain; display: block; }
+.el-ico-fb { font-size: 11px; font-weight: 800; }
+
+/* Dim only the Rover portrait while its element chooser is open. */
+#rosterPanel .char.rover[aria-expanded="true"] .face { filter: brightness(.15) saturate(0); }

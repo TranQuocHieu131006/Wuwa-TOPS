@@ -83,6 +83,8 @@ function syncMode() {
 // ---------------------------------------------------------------- roster
 const isHealer = id => !!byId[id] && byId[id].role === "Healer";
 // Rover có 4 bản nhưng chỉ dùng 1 bản: chọn bản này thì bỏ các bản kia
+const ROVER_ORDER = ["Aero", "Electro", "Havoc", "Spectro"];
+const NO_HOVER = typeof matchMedia === "function" && matchMedia("(hover: none)").matches;
 const isRover = id => /^Rover\b/.test(byId[id]?.name || "");
 function pickOneRover(id) {
   resonators.forEach(r => {
@@ -120,31 +122,127 @@ function visibleList() {
     (!only || selected.has(r.id))));
 }
 
+let roverMenu = null;
+let roverMenuTimer = 0;
+function closeRoverMenu() {
+  clearTimeout(roverMenuTimer);
+  roverMenu?.remove();
+  roverMenu = null;
+  document.querySelectorAll('.char.rover').forEach(card => card.setAttribute('aria-expanded', 'false'));
+}
+function deferCloseRoverMenu() {
+  clearTimeout(roverMenuTimer);
+  roverMenuTimer = setTimeout(closeRoverMenu, 450);
+}
+function roverArcPositions(count, cardWidth = 100) {
+  const perRing = 6, rings = Math.ceil(count / perRing);
+  const baseX = cardWidth / 2 + 10, baseY = 32;
+  const maxX = Math.min(baseX + Math.max(0, rings - 1) * 40, (window.innerWidth - 52) / 2);
+  const maxY = baseY + Math.max(0, rings - 1) * 38;
+  const width = maxX * 2 + 36, height = maxY + 36;
+  const points = Array.from({length: count}, (_, index) => {
+    const ring = Math.floor(index / perRing);
+    const ringCount = Math.min(perRing, count - ring * perRing);
+    const radiusX = maxX * (baseX + ring * 40) / (baseX + Math.max(0, rings - 1) * 40);
+    const radiusY = baseY + ring * 38;
+    const angle = ringCount === 1 ? Math.PI / 2 : Math.PI - Math.PI * (index % perRing) / (ringCount - 1);
+    return {x: width / 2 + radiusX * Math.cos(angle), y: height - 18 - radiusY * Math.sin(angle)};
+  });
+  return {width, height, points};
+}
+function openRoverMenu(card, variants, focusFirst = false) {
+  clearTimeout(roverMenuTimer);
+  if (roverMenu?.anchor === card) return;
+  closeRoverMenu();
+  const menu = document.createElement('div');
+  menu.className = 'rv-arc';
+  menu.setAttribute('role', 'group');
+  menu.setAttribute('aria-label', 'Chọn hệ cho Rover');
+  const rect = card.getBoundingClientRect(), arc = roverArcPositions(variants.length, rect.width);
+  menu.style.width = `${arc.width}px`; menu.style.height = `${arc.height}px`;
+  menu.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - arc.width / 2, window.innerWidth - arc.width - 8))}px`;
+  menu.style.top = `${Math.max(8, rect.top - arc.height + 20)}px`;
+  menu.innerHTML = variants.map((r, i) => `<button type="button" class="rv-opt ${selected.has(r.id) ? 'on' : ''}" data-rv-id="${r.id}" style="--c:${EL_COLOR[r.element] || '#5b8cff'};left:${arc.points[i].x}px;top:${arc.points[i].y}px" title="${esc(r.name)}" aria-label="${esc(r.name)}" aria-pressed="${selected.has(r.id)}">${elementIconHTML(r.element)}</button>`).join('');
+  menu.anchor = card; roverMenu = menu; document.body.appendChild(menu);
+  card.setAttribute('aria-expanded', 'true');
+  menu.addEventListener('mouseenter', () => clearTimeout(roverMenuTimer));
+  menu.addEventListener('mouseleave', deferCloseRoverMenu);
+  menu.addEventListener('focusin', () => clearTimeout(roverMenuTimer));
+  menu.addEventListener('focusout', e => { if (!menu.contains(e.relatedTarget) && e.relatedTarget !== card) deferCloseRoverMenu(); });
+  menu.querySelectorAll('button').forEach((button, i, buttons) => {
+    button.addEventListener('click', () => {
+      const id = Number(button.dataset.rvId);
+      if (selected.has(id)) { selected.delete(id); extra.delete(id); }
+      else { selected.add(id); pickOneRover(id); }
+      closeRoverMenu(); afterChange();
+    });
+    button.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        e.preventDefault(); buttons[(i + (e.key === 'ArrowRight' ? 1 : buttons.length - 1)) % buttons.length].focus();
+      }
+    });
+  });
+  if (focusFirst) menu.querySelector('button')?.focus();
+}
+document.addEventListener('pointerdown', e => {
+  if (roverMenu && !roverMenu.contains(e.target) && !roverMenu.anchor.contains(e.target)) closeRoverMenu();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && roverMenu) { const card = roverMenu.anchor; closeRoverMenu(); card.focus({preventScroll:true}); }
+});
+window.addEventListener('resize', closeRoverMenu);
+window.addEventListener('scroll', closeRoverMenu);
+
 function renderRoster() {
+  closeRoverMenu();
   const box = document.getElementById("roster");
   const scrollTop = box.scrollTop;
   const focusedId = box.contains(document.activeElement) ? document.activeElement.closest(".char")?.dataset.id : null;
-  const list = visibleList();
+  let list = visibleList();
+  // Rover chỉ hiện 1 thẻ: ưu tiên bản đang chọn, không thì bản đầu tiên; rê chuột vào để chọn hệ
+  const roverAll = resonators.filter(r => isRover(r.id)).sort((a, b) => {
+    const rank = r => ROVER_ORDER.includes(r.element) ? ROVER_ORDER.indexOf(r.element) : ROVER_ORDER.length;
+    return rank(a) - rank(b) || a.element.localeCompare(b.element);
+  });
+  const roverVis = list.filter(r => isRover(r.id));
+  const roverRep = roverVis.find(r => selected.has(r.id)) || roverVis[0];
+  list = list.filter(r => !isRover(r.id) || r === roverRep);
   box.innerHTML = list.map(r => {
     const sel = selected.has(r.id);
+    const rv = isRover(r.id);
     return `
-    <div class="char el-${r.element} ${sel ? "selected" : ""}" data-id="${r.id}" role="button" tabindex="0" aria-pressed="${sel}"
-         title="${esc(r.name)} · ${esc(r.element)}${r.date ? " · ra mắt " + fmtDate(r.date) : ""}${r.status !== "available" ? " · " + STATUS_META[r.status].label : ""}">
+    <div class="char el-${r.element} ${sel ? "selected" : ""} ${rv ? "rover" : ""}" data-id="${r.id}" ${rv ? 'data-rover="1" aria-expanded="false"' : ""} role="button" tabindex="0" aria-pressed="${sel}"
+         title="${esc(rv ? (sel ? r.name : "Rover") + " · rê chuột để chọn hệ" : r.name + " · " + r.element)}${r.date ? " · ra mắt " + fmtDate(r.date) : ""}${r.status !== "available" ? " · " + STATUS_META[r.status].label : ""}">
       <div class="tagrow">${statusTag(r.status)}</div>
       ${faceHTML(r, { size: "lg" })}
-      <div class="nm"><span class="nm-t">${esc(r.name)}</span></div>
+      <div class="nm"><span class="nm-t">${esc(rv && !sel ? "Rover" : r.name)}</span></div>
     </div>`;
   }).join("") || '<p class="hint">Không có nhân vật nào khớp bộ lọc.</p>';
 
   box.querySelectorAll(".char").forEach(card => {
     const id = Number(card.dataset.id);
-    card.addEventListener("keydown", e => {if(e.key === "Enter" || e.key === " "){e.preventDefault();card.click();}});
+    card.addEventListener("keydown", e => {if(e.target === card && (e.key === "Enter" || e.key === " ")){e.preventDefault();card.click();}});
+    if (card.dataset.rover) {
+      card.addEventListener('mouseenter', () => openRoverMenu(card, roverAll));
+      card.addEventListener('mouseleave', deferCloseRoverMenu);
+      card.addEventListener('keydown', e => {
+        if (e.target === card && e.key === 'ArrowUp') { e.preventDefault(); openRoverMenu(card, roverAll, true); }
+      });
+    }
     card.addEventListener("click", () => {
+      if (card.dataset.rover) {
+        if (NO_HOVER) { openRoverMenu(card, roverAll); return; }
+        const had = [...selected].filter(isRover);
+        if (had.length) had.forEach(x => { selected.delete(x); extra.delete(x); });
+        else { selected.add(id); pickOneRover(id); }
+        return afterChange();
+      }
       if (selected.has(id)) selected.delete(id);
       else { selected.add(id); if (isRover(id)) pickOneRover(id); }
       afterChange();
     });
   });
+  box.onscroll = closeRoverMenu;
   box.scrollTop = scrollTop;
   if(focusedId) box.querySelector(`.char[data-id="${focusedId}"]`)?.focus({preventScroll:true});
   updateCounter();
