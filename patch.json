@@ -1,6 +1,13 @@
 {
   "patches": [
     {
+      "version": "2.1.6",
+      "date": "2026-10-11 23:00",
+      "content": [
+        "Sửa UI rover"
+      ]
+    },
+    {
       "version": "2.1.5",
       "date": "2026-10-11 23:00",
       "content": [
