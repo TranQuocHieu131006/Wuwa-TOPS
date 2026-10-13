@@ -781,9 +781,9 @@ body.mode-matrix #modeSeg button.active[data-mode="matrix"] {
 
 /* Preview matches the active index theme and uses two team columns. */
 #rosterPanel #search { max-width: none; width: 100%; }
-.exp-box { min-width: 0; }
+.exp-box { min-width: 0; margin: auto; }   /* margin:auto = căn giữa cả ngang lẫn dọc; nội dung quá cao thì vẫn cuộn được */
 .exp-shot { display: block; max-width: 100%; overflow-x: auto; background: var(--panel); }
-.exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 76px; row-gap: 18px; width: max-content; }
+.exp-grid { grid-template-columns: repeat(2, 232px); column-gap: 152px; row-gap: 18px; width: max-content; }
 .exp-footer { display: flex; justify-content: flex-end; margin-top: 16px; }
 body.mode-matrix .exp-footer .primary { background: #412536; color: #fff; }
 
