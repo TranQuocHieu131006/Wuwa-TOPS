@@ -83,7 +83,7 @@ function syncMode() {
 // ---------------------------------------------------------------- roster
 const isHealer = id => !!byId[id] && byId[id].role === "Healer";
 // Rover có 4 bản nhưng chỉ dùng 1 bản: chọn bản này thì bỏ các bản kia
-const ROVER_ORDER = ["Aero", "Electro", "Havoc", "Spectro"];
+const ROVER_ORDER = ["Spectro", "Havoc", "Aero", "Electro"];   // thứ tự trái → phải trong vòng cung chọn hệ Rover
 const NO_HOVER = typeof matchMedia === "function" && matchMedia("(hover: none)").matches;
 const isRover = id => /^Rover\b/.test(byId[id]?.name || "");
 function pickOneRover(id) {
