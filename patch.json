@@ -1,6 +1,13 @@
 {
   "patches": [
     {
+      "version": "2.1.8",
+      "date": "2026-10-16 9:25",
+      "content": [
+        "Sửa UI xếp team"
+      ]
+    },
+    {
       "version": "2.1.7",
       "date": "2026-10-13 9:25",
       "content": [
