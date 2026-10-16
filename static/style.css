@@ -804,3 +804,42 @@ body.mode-matrix .exp-footer .primary { background: #412536; color: #fff; }
 
 /* Dim only the Rover portrait while its element chooser is open. */
 #rosterPanel .char.rover[aria-expanded="true"] .face { filter: brightness(.15) saturate(0); }
+
+/* Outline the mode switch while keeping the active mode fill. */
+#modeSeg { border: 1px solid var(--accent); box-shadow: none; }
+body.mode-matrix #modeSeg { border: 1px solid #a76b8c; box-shadow: none; }
+#modeSeg button { border: 0; box-shadow: none; }
+/* Remove the unused title row above team members. */
+#teams .team-card > .head { margin-bottom: 0; height: 0; }
+#teams .team-card .rm-team { position: absolute; top: 6px; right: 8px; z-index: 2; }
+#teams .team-card > .head.has-status { height: auto; padding-right: 30px; margin-bottom: 8px; }
+
+/* Keep spare characters beside the compact, two-column team builder. */
+#result .builder-workspace { display: grid; grid-template-columns: clamp(95px, calc(21% - 15px), 150px) minmax(0, 1fr); gap: 14px; align-items: start; margin-top: 20px; }
+#result .builder-pool { position: sticky; top: var(--roster-top, 110px); min-width: 0; max-height: calc(100dvh - var(--roster-top, 110px) - 110px); display: flex; flex-direction: column; padding: 10px 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+#result .builder-workspace h3.sec { margin: 0 0 8px; font-size: 14px; }
+#result .builder-pool > .hint { font-size: 11px; padding-inline: 4px; }
+#result .builder-pool #leftover { display: flex; flex-direction: column; flex-wrap: nowrap; gap: 7px; padding: 3px; min-height: 64px; overflow-y: auto; scrollbar-width: thin; }
+#result .builder-pool .lo { width: 100%; min-width: 0; gap: 5px; padding: 4px; border-radius: 10px; font-size: 11px; overflow-wrap: anywhere; }
+#result .builder-pool .lo .face { --s: 28px; }
+#result .builder-pool .lo small { margin-left: auto; }
+#result .builder-teams { min-width: 0; container-type: inline-size; }
+#result #teams { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#result #teams .team-card { --team-face: clamp(28px, 11cqw, 64px); min-width: 0; padding: 12px 8px 8px; }
+#result #teams .members { gap: clamp(4px, 1.5cqw, 10px); justify-content: center; }
+#result #teams .member.ts { flex: 0 1 calc(var(--team-face) + 8px); padding: 3px 0; gap: 5px; }
+#result #teams .ts-box, #result #teams .ts-empty, #result #teams .ts-box .dg { width: var(--team-face); height: var(--team-face); }
+#result #teams .ts-box .face { --s: var(--team-face); width: var(--team-face); height: var(--team-face); border-radius: 11px; }
+#result #teams .ts-empty { border-radius: 11px; font-size: 20px; }
+#result #teams .member .nm { font-size: 11px; }
+#result #teams .ts .rm { width: 16px; height: 16px; right: -4px; top: -4px; font-size: 11px; }
+#result #teams .rm-team { width: 18px; height: 18px; right: 3px; top: 3px; font-size: 10px; }
+#result #teams .alts { gap: 5px; font-size: 10px; margin-top: 8px; }
+#result #teams .alts .face { --s: 20px; }
+#result #teams .card-meta { font-size: 10px; }
+#result #teams .score-pill.zero { white-space: normal; font-size: 10px; padding: 2px 5px; }
+@media (max-width: 600px) {
+  #result .builder-workspace { grid-template-columns: minmax(0, 1fr); }
+  #result .builder-pool { position: static; max-height: 180px; }
+  #result .builder-pool #leftover { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

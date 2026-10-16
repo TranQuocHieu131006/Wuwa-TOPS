@@ -391,8 +391,7 @@ function layoutTeamCard(t, ti) {
     } else meta = "Chưa có team nào trong database chứa đúng bộ này (vẫn có thể giữ như team tự xếp).";
   }
   return `<div class="team-card ${t.manual ? "manual" : ""}" data-ti="${ti}">
-    <div class="head">
-      <div class="title"><span class="rank">#${ti + 1}</span></div>
+    <div class="head ${pill ? "has-status" : ""}">
       <div class="head-r">${pill}<button class="rm-team" data-ti="${ti}" title="Giải tán team (nhân vật về mục còn dư)">✕</button></div>
     </div>
     <div class="members">${t.members.map((_, si) => slotHTML(t, ti, si)).join("")}</div>
