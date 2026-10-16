@@ -3,16 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WuWa Account Optimizer</title>
-<link rel="stylesheet" href="static/style.css?v=245-builder">
+<title>WuWa TOPS</title>
+<link rel="stylesheet" href="static/style.css?v=248-builder">
 </head>
 <body>
 <header class="top">
   <div class="head-left">
 
     <div>
-      <h1>WuWa <span>Account Optimizer</span></h1>
-      <p>Chọn Resonator đang có → xếp team tối ưu → biết nên roll ai tiếp theo.</p>
+      <h1>WuWa<span>TOPS</span></h1>
+      <p>Team Optimization and Pull Suggestion</p>
     </div>
   </div>
   <div class="nav-group"><button type="button" class="nav-link patch-btn" id="patchBtn" title="Lịch sử cập nhật">📢 Cập nhật<span class="dot hidden" aria-label="Có cập nhật mới"></span></button><a class="nav-link" href="admin.html">⚙ Dữ liệu team / Admin</a></div>
@@ -23,7 +23,7 @@
     <div class="panel-head">
       <div>
         <h2>1. Resonator của bạn</h2>
-        <p class="hint" id="modeHint"></p>
+        <p class="hint" id="modeHint" hidden></p>
       </div>
     </div>
 
@@ -47,10 +47,10 @@
       <div class="panel-head">
         <div>
           <h2 id="resultTitle">2. Xếp team</h2>
-          <p class="hint">Các team tối ưu từ database, không nhân vật nào bị dùng quá số lần cho phép.</p>
         </div>
 
       </div>
+      <div class="builder-body">
       <div id="approxWarn" class="warn hidden">Roster quá lớn nên kết quả là gần-tối-ưu (heuristic), không phải tối ưu tuyệt đối.</div>
       <p id="limitNote" class="hint hidden"></p>
 
@@ -59,16 +59,16 @@
           <div id="leftover" class="leftover"></div>
         </aside>
         <div class="builder-teams">
-          <h3 class="sec">Các team được chọn <span class="hint">(kéo thả để chỉnh)</span></h3>
-          <p class="hint dnd-hint">Kéo nhân vật từ cột bên trái vào bất kỳ slot nào, hoặc chuyển giữa các team.</p>
+          <h3 class="sec">Các team được chọn</h3>
           <div id="teams" class="team-grid"></div>
           <div class="add-team-row"><button class="ghost" id="addTeamBtn">＋ Add new team</button></div>
         </div>
       </div>
 
       <div id="incWrap">
-      <h3 class="sec">Gợi ý team cho nhân vật dư <span class="hint">(nhân vật chưa có hiển thị tối đen)</span></h3>
+      <h3 class="sec">Gợi ý team cho nhân vật dư <span class="hint"></span></h3>
       <div id="incomplete" class="team-grid"></div>
+      </div>
       </div>
       <nav class="builder-nav" aria-label="Điều khiển xếp team">
     <div class="seg" id="modeSeg">
@@ -81,6 +81,7 @@
           <button class="export" id="exportBtn">Preview team</button>
           </div>
       </nav>
+
     </section>
 
 
@@ -88,12 +89,13 @@
       <div class="panel-head pull-head">
         <h2 id="pullTitle">3. Nên pull ai?</h2>
       </div>
-      <p class="hint" id="pullHint">Gợi ý nhân vật nên pull nhất dựa trên roster bạn đã chọn.</p>
+      <p class="hint" id="pullHint" hidden>Gợi ý nhân vật nên pull nhất dựa trên roster bạn đã chọn.</p>
       <div id="potLegend"></div>
       <div id="pulls"><p class="hint">Chọn Resonator để tự động xem gợi ý.</p></div>
     </section>
   </div>
 </main>
+<div id="builderResize" class="builder-resize" role="separator" tabindex="0" aria-label="Đổi chiều ngang panel xếp team" aria-orientation="vertical" title="Kéo trái/phải để đổi chiều ngang · Nhấp đúp để đặt lại"><span aria-hidden="true">::</span></div>
 
 <nav class="float-nav" aria-label="Liên kết">
   <a class="fn yt" href="https://www.youtube.com/@snowfoxatvietnam" target="_blank" rel="noopener noreferrer" title="YouTube" aria-label="YouTube">
@@ -109,6 +111,6 @@
 <script src="static/engine.js?v=224"></script>
 <script src="static/common.js?v=238"></script>
 <script src="static/patch.js?v=1"></script>
-<script src="static/app.js?v=242-team-ui"></script>
+<script src="static/app.js?v=247-builder"></script>
 </body>
 </html>
