@@ -824,7 +824,7 @@ body.mode-matrix #modeSeg { border: 1px solid #a76b8c; box-shadow: none; }
 #result .builder-pool .lo .face { --s: 28px; }
 #result .builder-pool .lo small { margin-left: auto; }
 #result .builder-teams { min-width: 0; container-type: inline-size; }
-#result #teams { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+#result #teams { grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 10px; }
 #result #teams .team-card { --team-face: clamp(28px, 11cqw, 64px); min-width: 0; padding: 12px 8px 8px; }
 #result #teams .members { gap: clamp(4px, 1.5cqw, 10px); justify-content: center; }
 #result #teams .member.ts { flex: 0 1 calc(var(--team-face) + 8px); padding: 3px 0; gap: 5px; }
@@ -843,3 +843,23 @@ body.mode-matrix #modeSeg { border: 1px solid #a76b8c; box-shadow: none; }
   #result .builder-pool { position: static; max-height: 180px; }
   #result .builder-pool #leftover { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Keep long character names and remaining-use counts on a single row. */
+#result #teams .member .nm { display: block; width: 100%; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; word-break: normal; }
+#result .builder-pool .lo { flex-shrink: 0; overflow-wrap: normal; }
+#result .builder-pool .lo-name { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#result .builder-pool .lo small { flex: 0 0 auto; white-space: nowrap; margin-left: 0; }
+/* Match the Resonator track and thumb, including the absence of arrow buttons. */
+#result #leftover, #result .builder-body { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.72) rgba(255,255,255,.06); }
+#result #leftover::-webkit-scrollbar, #result .builder-body::-webkit-scrollbar { width: 6px; }
+#result #leftover::-webkit-scrollbar-track, #result .builder-body::-webkit-scrollbar-track { background: rgba(255,255,255,.06); border-radius: 999px; }
+#result #leftover::-webkit-scrollbar-thumb, #result .builder-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,.72); border-radius: 999px; min-height: 36px; }
+#result #leftover::-webkit-scrollbar-thumb:hover, #result .builder-body::-webkit-scrollbar-thumb:hover { background: #fff; }
+#result #leftover::-webkit-scrollbar-button, #result .builder-body::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+.builder-body { min-width: 0; }
+/* Horizontal splitter sits in the gap between builder and Pull Suggest. */
+.builder-resize { display: none; position: fixed; z-index: 40; width: 18px; height: 48px; align-items: center; justify-content: center; transform: translate(-50%, -50%); cursor: ew-resize; touch-action: none; user-select: none; }
+.builder-resize span { opacity: .3; font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: 1px; }
+.builder-resize:focus-visible { outline: 2px solid var(--accent); border-radius: 5px; }
+body.builder-resizing { cursor: ew-resize; user-select: none; }
+@media (min-width: 1200px) { .builder-resize { display: flex; } }

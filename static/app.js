@@ -357,7 +357,7 @@ function slotHTML(t, ti, si) {
   const body = r
     ? `<div class="ts-box"><span class="dg" data-ti="${ti}" data-si="${si}" data-id="${id}">${faceHTML(r, { size: "lg" })}</span>
          <button class="rm" data-ti="${ti}" data-si="${si}" title="Gỡ ra khỏi team">×</button></div>
-       <span class="nm">${esc(r.name)}</span>`
+       <span class="nm" title="${esc(r.name)}">${esc(r.name)}</span>`
     : `<div class="ts-box"><span class="ts-empty">＋</span></div><span class="nm empty-nm">Trống</span>`;
   return `<div class="member ts" data-ti="${ti}" data-si="${si}">${body}</div>`;
 }
@@ -418,7 +418,7 @@ function renderLayout() {
   document.getElementById("leftover").innerHTML = left.length
     ? left.map(l => {
         const r = byId[l.id];
-        return `<span class="lo dg el-${r?.element}" data-id="${l.id}">${faceHTML(r, { size: "sm" })}${esc(r?.name || "?")}
+        return `<span class="lo dg el-${r?.element}" data-id="${l.id}" title="${esc(r?.name || '?')}">${faceHTML(r, { size: "sm" })}<span class="lo-name">${esc(r?.name || "?")}</span>
           ${l.count > 1 ? `<small>×${l.count}</small>` : ""}</span>`;
       }).join("")
     : '<span class="hint">Không còn nhân vật nào dư 🎉 (kéo nhân vật từ team về đây để gỡ ra)</span>';
@@ -823,3 +823,71 @@ window.addEventListener("resize", syncRosterAnchor);
 if (typeof ResizeObserver !== "undefined") {
   new ResizeObserver(syncRosterAnchor).observe(document.querySelector("header.top"));
 }
+
+// Resize the horizontal space shared by the builder and Pull Suggest.
+(function initBuilderResize() {
+  const panel = document.getElementById('result');
+  const pull = document.getElementById('pullResult');
+  const shell = document.getElementById('optimizerShell');
+  const grip = document.getElementById('builderResize');
+  if (!panel || !pull || !shell || !grip) return;
+  const storageKey = 'wuwa_builder_width_ratio_v1';
+  let drag = null, ratio = null;
+  const desktop = () => window.innerWidth >= 1200;
+  const positionGrip = () => {
+    if (!desktop()) return;
+    const r = panel.getBoundingClientRect(), p = pull.getBoundingClientRect();
+    const header = document.querySelector('header.top').getBoundingClientRect();
+    const top = Math.max(r.top, header.bottom + 12), bottom = Math.min(r.bottom, window.innerHeight - 20);
+    grip.style.left = `${(r.right + p.left) / 2}px`;
+    grip.style.top = `${(top + Math.max(top, bottom)) / 2}px`;
+    grip.style.visibility = bottom > top ? 'visible' : 'hidden';
+  };
+  const totalWidth = () => panel.getBoundingClientRect().width + pull.getBoundingClientRect().width;
+  const setWidth = value => {
+    if (!desktop()) return;
+    const total = totalWidth();
+    const width = Math.round(Math.max(Math.min(480, total * .6), Math.min(value, total - 280)));
+    const rosterWidth = document.getElementById('rosterPanel').getBoundingClientRect().width;
+    shell.style.gridTemplateColumns = `${rosterWidth}px minmax(0, ${width}px) minmax(280px, 1fr)`;
+    ratio = width / total;
+    grip.setAttribute('aria-valuenow', String(width));
+    positionGrip();
+  };
+  const save = () => { try { localStorage.setItem(storageKey, String(ratio)); } catch (_) {} };
+  const reset = () => {
+    ratio = null; shell.style.removeProperty('grid-template-columns'); grip.removeAttribute('aria-valuenow');
+    try { localStorage.removeItem(storageKey); } catch (_) {}
+    positionGrip();
+  };
+  try {
+    localStorage.removeItem('wuwa_builder_height_v1');
+    const stored = parseFloat(localStorage.getItem(storageKey));
+    if (Number.isFinite(stored) && stored > 0 && stored < 1) ratio = stored;
+  } catch (_) {}
+  if (ratio != null && desktop()) setWidth(totalWidth() * ratio);
+  grip.addEventListener('pointerdown', e => {
+    if (e.button !== 0 || !desktop()) return;
+    e.preventDefault(); drag = {x: e.clientX, width: panel.getBoundingClientRect().width};
+    grip.setPointerCapture(e.pointerId); document.body.classList.add('builder-resizing');
+  });
+  grip.addEventListener('pointermove', e => { if (drag) setWidth(drag.width + e.clientX - drag.x); });
+  const end = () => { if (!drag) return; drag = null; document.body.classList.remove('builder-resizing'); save(); };
+  grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end); grip.addEventListener('lostpointercapture', end);
+  grip.addEventListener('dblclick', reset);
+  grip.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      e.preventDefault(); setWidth(panel.getBoundingClientRect().width + (e.key === 'ArrowLeft' ? -20 : 20)); save();
+    } else if (e.key === 'Home') { e.preventDefault(); reset(); }
+  });
+  window.addEventListener('resize', () => {
+    shell.style.removeProperty('grid-template-columns');
+    if (ratio != null && desktop()) setWidth(totalWidth() * ratio);
+    positionGrip();
+  });
+  window.addEventListener('scroll', positionGrip, {passive:true});
+  if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(positionGrip); observer.observe(panel); observer.observe(pull);
+  }
+  positionGrip();
+})();
