@@ -63,7 +63,7 @@ window.WUWA_DATA = {
   {"id":60,"name":"Zhezhi","rarity":"5★","element":"Glacio","released":1,"slug":"zhezhi","role":"supDPS","date":"2024-08-15","status":"available","potential":"A"}
  ],
  "teams": [
-  {"id":1,"name":"Crimson Snow","slots":[[20],[28,33,23,46],[48,13,34,52]],"penalties":[[0],[0,0.5,1,1.5],[0,0.5,1,1.5]],"pairs":[[33,34],[20,28]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
+  {"id":1,"name":"Crimson Snow","slots":[[20],[28,33,23,46],[48,13,34,52]],"penalties":[[0],[0,0.5,1.5,2],[0,0.5,1,1.5]],"pairs":[[33,34],[20,28]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":3,"name":"Thánh Kiếm 36","slots":[[38],[17,33,35,46],[34,52]],"penalties":[[0],[0,0.5,1,3],[0,3]],"pairs":[[33,34],[17,34]],"focused_pairs":[],"score":6,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":4,"name":"Yangyang Meta","slots":[[55],[48],[13]],"penalties":[[0],[0],[0]],"pairs":[[55,48]],"focused_pairs":[],"score":98,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":5,"name":"Aemeath Fb","slots":[[2],[17],[13,31,48]],"penalties":[[0],[0],[0,0,1]],"pairs":[[17,13]],"focused_pairs":[],"score":6,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
@@ -107,6 +107,7 @@ window.WUWA_DATA = {
   {"id":71,"name":"Sigrika (bản sao)","slots":[[47],[39],[28]],"penalties":[[0],[0],[0.3]],"focused_pairs":[],"score":3.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":72,"name":"Mono Fusion","slots":[[31],[5],[12]],"penalties":[[0],[0],[0]],"pairs":[[31,5,12]],"focused_pairs":[[31,5,12]],"score":80,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
   {"id":73,"name":"Hiyuki Meta (bản sao)","slots":[[13,48],[55,20,21],[]],"penalties":[[0,0],[0,1,2],[]],"focused_pairs":[],"score":90,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
-  {"id":74,"name":"Hiyuki Meta (bản sao)","slots":[[20],[28],[]],"penalties":[[0],[0],[]],"pairs":[[20,28]],"focused_pairs":[],"score":100,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"}
+  {"id":74,"name":"Hiyuki Meta (bản sao)","slots":[[20],[28],[]],"penalties":[[0],[0],[]],"pairs":[[20,28]],"focused_pairs":[],"score":100,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
+  {"id":75,"name":"Crimson Snow (bản sao)","slots":[[20],[48],[13]],"penalties":[[0],[0],[1]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"}
  ]
 };
