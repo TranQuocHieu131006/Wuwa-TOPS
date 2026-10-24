@@ -1,6 +1,13 @@
 {
   "patches": [
     {
+      "version": "2.2",
+      "date": "2026-10-24 9:25",
+      "content": [
+        "Update data Suoming"
+      ]
+    },
+    {
       "version": "2.1.9",
       "date": "2026-10-16 9:25",
       "content": [
