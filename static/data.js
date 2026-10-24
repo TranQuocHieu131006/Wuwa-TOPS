@@ -73,7 +73,7 @@ window.WUWA_DATA = {
   {"id":11,"name":"Augusta Meta","slots":[[3],[22],[51]],"penalties":[[0],[0],[0]],"pairs":[[3,22]],"focused_pairs":[],"score":90,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":12,"name":"Carte Meta","slots":[[11],[15],[]],"penalties":[[0],[0],[]],"pairs":[[11,15]],"focused_pairs":[],"score":70,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":15,"name":"Lucy Meta","slots":[[29],[40],[34]],"penalties":[[0],[0],[0]],"pairs":[[29,40]],"focused_pairs":[],"score":78,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
-  {"id":18,"name":"Hsin UniSON","slots":[[21],[25,56],[51,48,52,6]],"penalties":[[0],[0,1],[0,0.5,1.5,2]],"focused_pairs":[],"score":6,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
+  {"id":18,"name":"Hsin UniSON","slots":[[21],[49,25,56],[51,52,6]],"penalties":[[0],[0,1,2],[0,1.5,2]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":23,"name":"Phrolova Meta","slots":[[37],[9],[]],"penalties":[[0],[0],[]],"pairs":[[37,9]],"focused_pairs":[],"score":70,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":24,"name":"Zani Meta","slots":[[59],[36],[]],"penalties":[[0],[0],[]],"pairs":[[59,36]],"focused_pairs":[],"score":70,"kind":"meta","team_type":"","notes":"","active":1,"source":"prydwen"},
   {"id":35,"name":"Team Lao Công","slots":[[53,7],[56,12],[51,52,54]],"penalties":[[0,0.5],[1.5,2],[0,0.5,1]],"focused_pairs":[],"score":2,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
