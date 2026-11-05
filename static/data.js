@@ -95,7 +95,7 @@ window.WUWA_DATA = {
   {"id":57,"name":"Cyber Punk","slots":[[29],[40],[34,51,52,4,54]],"penalties":[[0],[0],[0,1.5,2,2.5,2.5]],"focused_pairs":[],"score":4,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":58,"name":"Gà Béo","slots":[[19],[39,28,31,54],[51,34,52]],"penalties":[[0],[0,1,2,2.5],[0,1,1.5]],"pairs":[[31,34],[39,51]],"focused_pairs":[],"score":4,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":59,"name":"A Yao","slots":[[53],[56,12,33,23],[51,52,6,4,34,54]],"penalties":[[0],[0,0.5,0.5,1.5],[0,0.5,1,1,1,1.5]],"pairs":[[53,56],[33,34]],"focused_pairs":[],"score":3,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
-  {"id":60,"name":"Mono Fusion","slots":[[31],[12,17,5],[34,12,51,18,35]],"penalties":[[0],[0,0.5,1.5],[0.5,1,1.5,2.5,3]],"pairs":[[31,5,12]],"focused_pairs":[],"score":4,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
+  {"id":60,"name":"Mono Fusion","slots":[[31],[12,17,5],[34,51,18,35]],"penalties":[[0],[0,0.5,1.5],[0.5,1.5,2.5,3]],"focused_pairs":[],"score":4,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":61,"name":"Cam Bựa","slots":[[8],[46,41,16],[52,51]],"penalties":[[0],[0.5,0.5,1],[0.5,0.5]],"pairs":[[8,46],[46,52]],"focused_pairs":[],"score":3,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":62,"name":"Jinhsiii","slots":[[25],[9,12,60,58,56],[52,6]],"penalties":[[0],[0,0.5,1,1.5,1.5],[0,0.5]],"focused_pairs":[],"score":3,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
   {"id":63,"name":"A Long","slots":[[26],[35,54,1],[51,52]],"penalties":[[0],[0.5,1,1.5],[0,0.5]],"pairs":[[35,52]],"focused_pairs":[],"score":3,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
@@ -108,6 +108,7 @@ window.WUWA_DATA = {
   {"id":72,"name":"Mono Fusion","slots":[[31],[5],[12]],"penalties":[[0],[0],[0]],"pairs":[[31,5,12]],"focused_pairs":[[31,5,12]],"score":80,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
   {"id":73,"name":"Hiyuki Meta (bản sao)","slots":[[13,48],[55,20,21],[]],"penalties":[[0,0],[0,1,2],[]],"focused_pairs":[],"score":90,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
   {"id":74,"name":"Hiyuki Meta (bản sao)","slots":[[20],[28],[]],"penalties":[[0],[0],[]],"pairs":[[20,28]],"focused_pairs":[],"score":100,"kind":"meta","team_type":"","notes":"","active":1,"source":"user"},
-  {"id":75,"name":"Crimson Snow (bản sao)","slots":[[20],[48],[13]],"penalties":[[0],[0],[1]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"}
+  {"id":75,"name":"Crimson Snow (bản sao)","slots":[[20],[48],[13]],"penalties":[[0],[0],[1]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"},
+  {"id":76,"name":"Mono Fusion (bản sao)","slots":[[31],[12],[5]],"penalties":[[0],[0],[0]],"focused_pairs":[],"score":5.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"user"}
  ]
 };
