@@ -60,7 +60,8 @@ window.WUWA_DATA = {
   {"id":57,"name":"Youhu","rarity":"4★","element":"Glacio","released":1,"slug":"youhu","role":"supDPS","date":"2024-10-24","status":"available","potential":"D"},
   {"id":58,"name":"Yuanwu","rarity":"4★","element":"Electro","released":1,"slug":"yuanwu","role":"supDPS","date":"2024-05-22","status":"available","potential":"D"},
   {"id":59,"name":"Zani","rarity":"5★","element":"Spectro","released":1,"slug":"zani","role":"DPS","date":"2025-04-29","status":"available","potential":"A"},
-  {"id":60,"name":"Zhezhi","rarity":"5★","element":"Glacio","released":1,"slug":"zhezhi","role":"supDPS","date":"2024-08-15","status":"available","potential":"A"}
+  {"id":60,"name":"Zhezhi","rarity":"5★","element":"Glacio","released":1,"slug":"zhezhi","role":"supDPS","date":"2024-08-15","status":"available","potential":"A"},
+  {"id":61,"name":"Lily","rarity":"5★","element":"Spectro","released":0,"slug":"lily","role":"supDPS","date":"","status":"upcoming","potential":""}
  ],
  "teams": [
   {"id":1,"name":"Crimson Snow","slots":[[20],[28,33,23,46],[48,13,34,52]],"penalties":[[0],[0,0.5,1.5,2],[0,0.5,1,1.5]],"pairs":[[33,34],[20,28]],"focused_pairs":[],"score":6.5,"kind":"alt","team_type":"","notes":"","active":1,"source":"prydwen"},
