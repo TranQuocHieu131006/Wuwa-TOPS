@@ -33,7 +33,7 @@ window.WUWA_DATA = {
   {"id":30,"name":"Lumi","rarity":"4★","element":"Electro","released":1,"slug":"lumi","role":"supDPS","date":"2024-12-12","status":"available","potential":"D"},
   {"id":31,"name":"Lupa","rarity":"5★","element":"Fusion","released":1,"slug":"lupa","role":"DPS","date":"2025-07-03","status":"available","potential":"A"},
   {"id":32,"name":"Luuk Herssen","rarity":"5★","element":"Spectro","released":1,"slug":"luuk-herssen","role":"DPS","date":"2026-02-26","status":"available","potential":"A"},
-  {"id":33,"name":"Lynae","rarity":"5★","element":"Spectro","released":1,"slug":"lynae","role":"Healer","date":"2025-12-25","status":"available","potential":"A"},
+  {"id":33,"name":"Lynae","rarity":"5★","element":"Spectro","released":1,"slug":"lynae","role":"supDPS","date":"2025-12-25","status":"available","potential":"A"},
   {"id":34,"name":"Mornye","rarity":"5★","element":"Fusion","released":1,"slug":"mornye","role":"Healer","date":"2026-01-15","status":"available","potential":"S"},
   {"id":35,"name":"Mortefi","rarity":"4★","element":"Fusion","released":1,"slug":"mortefi","role":"supDPS","date":"2024-05-22","status":"available","potential":"B"},
   {"id":36,"name":"Phoebe","rarity":"5★","element":"Spectro","released":1,"slug":"phoebe","role":"DPS","date":"2025-02-13","status":"rerun","potential":"A"},
