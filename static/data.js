@@ -28,7 +28,7 @@ window.WUWA_DATA = {
   {"id":25,"name":"Jinhsi","rarity":"5★","element":"Spectro","released":1,"slug":"jinhsi","role":"DPS","date":"2024-06-28","status":"available","potential":"C"},
   {"id":26,"name":"Jiyan","rarity":"5★","element":"Aero","released":1,"slug":"jiyan","role":"DPS","date":"2024-06-05","status":"available","potential":"F"},
   {"id":27,"name":"Lingyang","rarity":"5★","element":"Glacio","released":1,"slug":"lingyang","role":"DPS","date":"2024-05-21","status":"available","potential":"D"},
-  {"id":28,"name":"Lucilla","rarity":"5★","element":"Glacio","released":1,"slug":"lucilla","role":"supDPS","date":"2026-06-13","status":"available","potential":"A"},
+  {"id":28,"name":"Lucilla","rarity":"5★","element":"Glacio","released":1,"slug":"lucilla","role":"Healer","date":"2026-06-13","status":"available","potential":"A"},
   {"id":29,"name":"Lucy","rarity":"5★","element":"Spectro","released":1,"slug":"lucy","role":"DPS","date":"2026-06-08","status":"limited","potential":"D"},
   {"id":30,"name":"Lumi","rarity":"4★","element":"Electro","released":1,"slug":"lumi","role":"supDPS","date":"2024-12-12","status":"available","potential":"D"},
   {"id":31,"name":"Lupa","rarity":"5★","element":"Fusion","released":1,"slug":"lupa","role":"DPS","date":"2025-07-03","status":"available","potential":"A"},
